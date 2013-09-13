@@ -1,0 +1,9 @@
+geometry_msgs/PoseArray randomPoses
+float32[] pan_angles
+float32[] tilt_angles
+int32 num_best_poses
+---
+geometry_msgs/PoseArray bestPoses
+float32[] bestPosesWeights
+float32[] pan_sorted
+float32[] tilt_sorted

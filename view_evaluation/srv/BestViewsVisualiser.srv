@@ -1,0 +1,10 @@
+geometry_msgs/PoseArray randomPoses
+float32[] pan_angles
+float32[] tilt_angles
+int32 num_best_poses
+---
+visualization_msgs/MarkerArray cones2D
+visualization_msgs/MarkerArray bestCones2D
+visualization_msgs/MarkerArray cones3D
+geometry_msgs/PoseArray poses2D
+geometry_msgs/PoseArray poses3D
