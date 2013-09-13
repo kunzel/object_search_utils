@@ -434,16 +434,16 @@ fbr: -0.332542
   points[3].y = -0.0221695;//frustum.nbr;
   points[3].z = -0.0221695;//frustum.nbr;
 
-  points[4].x = 1.5;//frustum.ftl;
+  points[4].x = 2.5;//frustum.ftl;
   points[4].y = 0.332542;//frustum.ftl;
   points[4].z = 0.332542;//frustum.ftl;
-  points[5].x = 1.5;//frustum.ftr;
+  points[5].x = 2.5;//frustum.ftr;
   points[5].y = -0.332542;//frustum.ftr;
   points[5].z = 0.332542;//frustum.ftr;
-  points[6].x = 1.5;//frustum.fbl;
+  points[6].x = 2.5;//frustum.fbl;
   points[6].y = 0.332542;//frustum.fbl;
   points[6].z = -0.332542;//frustum.fbl;
-  points[7].x = 1.5;//frustum.fbr;
+  points[7].x = 2.5;//frustum.fbr;
   points[7].y = -0.332542;//frustum.fbr;
   points[7].z = -0.332542;//frustum.fbr;  
 
@@ -977,7 +977,7 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
     {
       for (int j = 0; j < num_poses3D; j++)
         {
-          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + tilt_angles.at(j), yaw_robot[i] + pan_angles.at(j));
         }
     }
 
@@ -1148,7 +1148,7 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
     {
       for (int j = 0; j < num_poses3D; j++)
         {
-          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + tilt_angles.at(j), yaw_robot[i] + pan_angles.at(j));
         }
     }
 
@@ -1203,31 +1203,34 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   }
   findBestPanTilt(cones3D[bestPosesIndex3D[0]], num_poses3D, bestPanTiltIndex);
 
-  float pan[num_poses3D];
-  float tilt[num_poses3D];
+  //float pan[num_poses3D];
+  //float tilt[num_poses3D];
+
+  
+  // for (int i = 0; i < num_poses3D; i++)
+  //   {
+  //     tf::Quaternion qq;
+  //     //tf::quaternionMsgToTF (q[i], qq);
+  //     tf::quaternionMsgToTF (q[bestPosesIndex3D[0]][i], qq);
+      
+  //     tf::Matrix3x3 m(qq);
+  //     double roll, pitch, yaw;
+  //     m.getRPY(roll, pitch, yaw);
+  //     pan[i] = pitch;
+  //     tilt[i] = yaw;
+  //     //bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
+  //   }
 
   std::vector<float> pan_sorted;
   std::vector<float> tilt_sorted;
   
+  
   for (int i = 0; i < num_poses3D; i++)
-  {
-	tf::Quaternion qq;
-	//tf::quaternionMsgToTF (q[i], qq);
-	tf::quaternionMsgToTF (q[bestPosesIndex3D[0]][i], qq);
-
-  tf::Matrix3x3 m(qq);
-  	double roll, pitch, yaw;
-  	m.getRPY(roll, pitch, yaw);
-	pan[i] = pitch;
-	tilt[i] = yaw;
-	//bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
-  }
-  for (int i = 0; i < num_poses3D; i++)
-  {
-	pan_sorted.push_back(pan[bestPanTiltIndex[i]]);
-	tilt_sorted.push_back(tilt[bestPanTiltIndex[i]]);
-	//bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
-  }
+    {
+      pan_sorted.push_back(pan_angles[bestPanTiltIndex[i]]);
+      tilt_sorted.push_back(tilt_angles[bestPanTiltIndex[i]]);
+      //bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
+    }
   
   // Update the results:
   res.bestPoses = bestPoseArray;
