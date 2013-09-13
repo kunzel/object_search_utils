@@ -167,9 +167,9 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
 {
   float cell_x, cell_y;
   //std::cerr << "inside checkInsideCone2D " <<x<<y << std::endl;
-  cell_x = x * map_resolution + map_origin_x;
-  cell_y = y * map_resolution + map_origin_y;
-  if (checkInsideTraingle(cell_x, cell_y, cone2D) || insideCircle(cell_x, cell_y, cone2D))
+  //cell_x = x * map_resolution + map_origin_x;
+  //cell_y = y * map_resolution + map_origin_y;
+  if(checkInsideTraingle(x, y, cone2D) || insideCircle(x, y, cone2D))
   {
 	//std::cerr << "checkInsideCone2D true " <<x<<y << std::endl;
   	return true;
@@ -184,42 +184,74 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
 void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 {
 
-  int count = 0;
-  int occupied_count = 0;
-  int occupied_count_check = 0;
-  int free_count = 0;
-  int unknown_count = 0;
+  std::string map = "octomap.bt";
+  OcTree* input_tree = new OcTree(map);
 
-  std::cerr<< "inside findProbabilityOfCones2D:"<<  std::endl;
+  std::cerr<<"Inside findProbabilityOfCones2D"<< std::endl;
   
-  for (int i = 0; i < map_height; i++)
+  for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
+        end=input_tree->end_leafs(); it!= end; ++it)
     {
-      for (int j = 0; j < map_width; j++)
+      if (input_tree->isNodeOccupied(*it))
         {
-          if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
+          point3d p3d = it.getCoordinate();
+
+          double x = p3d.x();
+          double y = p3d.y();
+               
+          for (int k = 0; k < num_poses2D; k++)
             {
-              occupied_count_check++;
-              for (int k = 0; k < num_poses2D; k++)
+              if (checkInsideCone2D(y, x, cones2D[k]))
                 {
-                  if (checkInsideCone2D(j, i, cones2D[k]))
-                    {
-                      cones2D[k].probability += 1; 
-
-                      double x_pos = j * map_resolution + map_origin_x;
-                      double y_pos = i * map_resolution + map_origin_y;
-            
-                      cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x_pos, y_pos , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
-
-
-                    }
+                  //cones2D[k].probability += 1; 
+                  cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
                 }
-            }
+            } 
+          
         }
     }
+
   for (int k = 0; k < num_poses2D; k++)
     {
       std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
     }
+  
+  // int count = 0;
+  // int occupied_count = 0;
+  // int occupied_count_check = 0;
+  // int free_count = 0;
+  // int unknown_count = 0;
+
+  // std::cerr<< "inside findProbabilityOfCones2D:"<<  std::endl;
+  
+  // for (int i = 0; i < map_height; i++)
+  //   {
+  //     for (int j = 0; j < map_width; j++)
+  //       {
+  //         if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
+  //           {
+  //             occupied_count_check++;
+  //             for (int k = 0; k < num_poses2D; k++)
+  //               {
+  //                 if (checkInsideCone2D(j, i, cones2D[k]))
+  //                   {
+  //                     cones2D[k].probability += 1; 
+
+  //                     double x_pos = j * map_resolution + map_origin_x;
+  //                     double y_pos = i * map_resolution + map_origin_y;
+            
+  //                     cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x_pos, y_pos , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+
+
+  //                   }
+  //               }
+  //           }
+  //       }
+  //   }
+  // for (int k = 0; k < num_poses2D; k++)
+  //   {
+  //     std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
+  //   }
 }
 
 
@@ -227,7 +259,7 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 {
   std::string map = "octomap.bt";
-   OcTree* input_tree = new OcTree(map);
+  OcTree* input_tree = new OcTree(map);
   int free = 0;
   int occupied = 0;
 
@@ -268,10 +300,6 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
     }
     std::cerr<<"occupied "<< occupied<< std::endl;
     std::cerr<<"free "<< free<< std::endl;
-    for (int i = 0; i < num_poses3D; i++)
-    {
- 	//std::cerr<<"After Probability 3D Cone "<<i<< ": "<< frustum[i].probability<< std::endl;
-    }
 
 }
 
@@ -577,6 +605,14 @@ visualization_msgs::MarkerArray drawCones2D(Cone cones2D_visualiser[], int num_p
   visualization_msgs::MarkerArray cone2D_markers;
   cone2D_markers.markers.resize(num_poses2D);
 
+  float max_probability = 0.0000001;
+  for (int j = 0; j < num_poses2D; j++)
+    {
+      if (cones2D_visualiser[j].probability > max_probability)
+        max_probability = cones2D_visualiser[j].probability;
+    }
+  
+
   for (unsigned i = 0; i < num_poses2D; i++)
   {
 	geometry_msgs::Point p1, p2, p3;
@@ -604,10 +640,11 @@ visualization_msgs::MarkerArray drawCones2D(Cone cones2D_visualiser[], int num_p
 	cone2D_markers.markers[i].scale.y = 1.0;
 	cone2D_markers.markers[i].scale.z = 1.0;
 	cone2D_markers.markers[i].color.a = 0.6;
-   	cone2D_markers.markers[i].color.b = 0.0;
-	cone2D_markers.markers[i].color.r = 1.0;
-	cone2D_markers.markers[i].color.g = 0.0;
 		
+  cone2D_markers.markers[i].color.b = b_func(cones2D_visualiser[i].probability/max_probability);
+  cone2D_markers.markers[i].color.r = r_func(cones2D_visualiser[i].probability/max_probability);
+  cone2D_markers.markers[i].color.g = g_func(cones2D_visualiser[i].probability/max_probability);
+
 	
 	//std::cerr << "size in server: "<< cone2D_markers.markers[i].points.size() << std::endl;
 	     
@@ -713,7 +750,7 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
 		p[7].z = frustum[j].fbr.z;
 
     
-    cone3D_markers.markers[j].header.frame_id = "map";
+    cone3D_markers.markers[j].header.frame_id = "/map";
     cone3D_markers.markers[j].header.stamp = ros::Time(); // Duration
     cone3D_markers.markers[j].ns = "map"; // Namespace
     cone3D_markers.markers[j].id = id; // Id
