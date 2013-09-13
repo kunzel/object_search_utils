@@ -371,6 +371,7 @@ public:
 		fbl = fc - Y * fh - X * fw;
 		fbr = fc - Y * fh + X * fw;
 */
+  //std::cerr<< " empty def."<<std::endl;
 
 		pl[TOP].set3Points(ntr,ntl,ftl);
 		pl[BOTTOM].set3Points(nbl,nbr,fbr);
@@ -383,6 +384,8 @@ public:
 
 
 
+
+
 	int pointInFrustum(Vec3 &p) {
 
 		int result = INSIDE;
@@ -392,6 +395,45 @@ public:
 				return OUTSIDE;
 		}
 		return(result);
+	}
+void setCamDef(Vec3 p, Vec3 l, Vec3 u) {
+	
+
+  //std::cerr<< " definition with parameters."<<std::endl;
+		Vec3 dir,nc,fc,X,Y,Z;
+
+		Z = p - l;
+		Z.normalize();
+
+		X = u * Z;
+		X.normalize();
+
+		Y = Z * X;
+
+
+		nc = p - Z * nearD;
+		fc = p - Z * farD;
+
+		ntl = nc + Y * nh - X * nw;
+		ntr = nc + Y * nh + X * nw;
+
+		nbl = nc - Y * nh - X * nw;
+		nbr = nc - Y * nh + X * nw;
+
+		ftl = fc + Y * fh - X * fw;
+		ftr = fc + Y * fh + X * fw;
+
+		fbl = fc - Y * fh - X * fw;
+		fbr = fc - Y * fh + X * fw;
+
+
+		pl[TOP].set3Points(ntr,ntl,ftl);
+		pl[BOTTOM].set3Points(nbl,nbr,fbr);
+		pl[LEFT].set3Points(ntl,nbl,fbl);
+
+		pl[RIGHT].set3Points(nbr,ntr,fbr);
+		pl[NEARP].set3Points(ntl,ntr,nbr);
+		pl[FARP].set3Points(ftr,ftl,fbl);
 	}
 };
 

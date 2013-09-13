@@ -96,7 +96,12 @@ class Cone
   double radius = 0.0; // Radius of 2dcone circle.
   double length = 0.0; // Height of the 2dcone.
   double camera_height = 0.0;
+  double frustum_near = 0.0;
+  double frustum_far = 0.0;
+  double frustum_angle = 0.0;
+  double frustum_ratio = 1.0;
   std::string octomap_path = "";
+  
 
 bool checkInsideTraingle(float x, float y, Cone cone2D) 
 {
@@ -358,6 +363,7 @@ void generateCones3D(Frustum frustum[], int num_poses3D, geometry_msgs::PoseArra
 {
   
   Vec3 points[8];
+  Frustum frustum_temp;
 /*
 ntl: 0.1
 ntr: 0.1
@@ -388,31 +394,37 @@ fbl: -0.332542
 fbr: -0.332542
 
 */
-  points[0].x = 0.1;//frustum.ntl;
-  points[0].y = 0.0221695;//frustum.ntl;
-  points[0].z = 0.0221695;//frustum.ntl;
-  points[1].x = 0.1;//frustum.ntr;
-  points[1].y = -0.0221695;//frustum.ntr;
-  points[1].z = 0.0221695;//frustum.ntr;
-  points[2].x = 0.1;//frustum.nbl;
-  points[2].y = 0.0221695;//frustum.nbl;
-  points[2].z = -0.0221695;//frustum.nbl;
-  points[3].x = 0.1;//frustum.nbr;
-  points[3].y = -0.0221695;//frustum.nbr;
-  points[3].z = -0.0221695;//frustum.nbr;
 
-  points[4].x = 1.5;//frustum.ftl;
-  points[4].y = 0.332542;//frustum.ftl;
-  points[4].z = 0.332542;//frustum.ftl;
-  points[5].x = 1.5;//frustum.ftr;
-  points[5].y = -0.332542;//frustum.ftr;
-  points[5].z = 0.332542;//frustum.ftr;
-  points[6].x = 1.5;//frustum.fbl;
-  points[6].y = 0.332542;//frustum.fbl;
-  points[6].z = -0.332542;//frustum.fbl;
-  points[7].x = 1.5;//frustum.fbr;
-  points[7].y = -0.332542;//frustum.fbr;
-  points[7].z = -0.332542;//frustum.fbr;  
+  Vec3 p(0.0, 0.0, camera_height); // Camera position.
+  Vec3 l(2.0, 0.0, camera_height); // Look up vector.
+  Vec3 u(0, 0, 1); // Right vector.
+  frustum_temp.setCamInternals(frustum_angle, frustum_ratio, frustum_near, frustum_far);
+  frustum_temp.setCamDef(p, l, u);
+  points[0].x = frustum_temp.ntl.x;
+  points[0].y = frustum_temp.ntl.y;
+  points[0].z = frustum_temp.ntl.z;
+  points[1].x = frustum_temp.ntr.x;
+  points[1].y = frustum_temp.ntr.y;
+  points[1].z = frustum_temp.ntr.z;
+  points[2].x = frustum_temp.nbl.x;
+  points[2].y = frustum_temp.nbl.y;
+  points[2].z = frustum_temp.nbl.z;
+  points[3].x = frustum_temp.nbr.x;
+  points[3].y = frustum_temp.nbr.y;
+  points[3].z = frustum_temp.nbr.z;
+
+  points[4].x = frustum_temp.ftl.x;
+  points[4].y = frustum_temp.ftl.y;
+  points[4].z = frustum_temp.ftl.z;
+  points[5].x = frustum_temp.ftr.x;
+  points[5].y = frustum_temp.ftr.y;
+  points[5].z = frustum_temp.ftr.z;
+  points[6].x = frustum_temp.fbl.x;
+  points[6].y = frustum_temp.fbl.y;
+  points[6].z = frustum_temp.fbl.z;
+  points[7].x = frustum_temp.fbr.x;
+  points[7].y = frustum_temp.fbr.y;
+  points[7].z = frustum_temp.fbr.z;  
 
   //std::cerr << "inside generateCone3D" << std::endl;
   for (int main_i = 0; main_i < num_poses3D; main_i++)
@@ -456,7 +468,9 @@ fbr: -0.332542
 	  drawPoints(frustrum);
 
 	*/ 
-
+	
+	
+	
 	// When not considered the frustum parameters and hardcoded frustum values:
 
 	frustum[main_i].ntl.x = points_new[0].x;
@@ -1255,9 +1269,9 @@ int main (int argc, char** argv)
   ros::init (argc, argv, "Best_Views");
   ros::NodeHandle node; // Ros node handler.
 
-  //node.getParam("frustum_near", serial_number);
-  //node.getParam("frustum_far", serial_number);
-  //node.getParam("frustum_angle", serial_number);
+  node.getParam("frustum_near", frustum_near);
+  node.getParam("frustum_far", frustum_far);
+  node.getParam("frustum_angle", frustum_angle);
   node.getParam("robot_height", camera_height);
   node.getParam("triangle_radius", radius);
   node.getParam("triangle_height", length);
