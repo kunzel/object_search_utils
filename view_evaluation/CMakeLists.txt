@@ -73,12 +73,12 @@ include_directories(include
 
 add_executable(bestView_client src/BestView_Client.cpp)
 target_link_libraries(bestView_client ${catkin_LIBRARIES})
-add_dependencies(bestView_client pcl_tabletop_gencpp)
+add_dependencies(bestView_client view_evaluation_gencpp)
 
 add_executable(bestView src/BestViews.cpp)
 target_link_libraries(bestView ${OCTOMAP_LIBRARIES})
 target_link_libraries(bestView ${catkin_LIBRARIES})
-add_dependencies(bestView pcl_tabletop_gencpp)
+add_dependencies(bestView view_evaluation_gencpp)
 
 
 
