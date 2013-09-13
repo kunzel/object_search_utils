@@ -93,8 +93,10 @@ class Cone
   float map_resolution;
   int map_received = 0;
   nav_msgs::OccupancyGrid mapData;
-  float radius = 0.5; // Radius of cone circle.
-  float length = 2.0; // Height of the cone.
+  double radius = 0.0; // Radius of 2dcone circle.
+  double length = 0.0; // Height of the 2dcone.
+  double camera_height = 0.0;
+  std::string octomap_path = "";
 
 bool checkInsideTraingle(float x, float y, Cone cone2D) 
 {
@@ -248,8 +250,7 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 //float xx[70000], yy[70000], zz[70000];
 void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 {
-  std::string map = "octomap.bt";
-   OcTree* input_tree = new OcTree(map);
+  OcTree* input_tree = new OcTree(octomap_path);
   int free = 0;
   int occupied = 0;
 
@@ -879,7 +880,7 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  float camera_height = 1.0;
+  //float camera_height = 1.0;
 
 
   Cone cones2D_visualiser[num_poses2D];
@@ -1046,7 +1047,7 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  float camera_height = 1.0;
+  //float camera_height = 1.0;
 
   // Outputs
   //float weights[num_poses]; // Weights of random poses.
@@ -1253,6 +1254,15 @@ int main (int argc, char** argv)
   // Initialize ROS
   ros::init (argc, argv, "Best_Views");
   ros::NodeHandle node; // Ros node handler.
+
+  //node.getParam("frustum_near", serial_number);
+  //node.getParam("frustum_far", serial_number);
+  //node.getParam("frustum_angle", serial_number);
+  node.getParam("robot_height", camera_height);
+  node.getParam("triangle_radius", radius);
+  node.getParam("triangle_height", length);
+  node.getParam("octomap_path", octomap_path);
+  std::cerr << "octomap_path: " <<octomap_path<< std::endl;
 
   // Create a ROS subscriber for map data.
   ros::Subscriber sub_map = node.subscribe ("map", 1, process_map);
