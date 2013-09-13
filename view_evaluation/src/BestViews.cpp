@@ -15,6 +15,10 @@
 #include <view_evaluation/BestViews.h>
 #include "view_evaluation/BestViewsVisualiser.h"
 
+#include "octomap_msgs/GetOctomap.h"
+using octomap_msgs::GetOctomap;
+#include <octomap_msgs/conversions.h>
+
 using namespace std;
 using namespace octomap;
 
@@ -23,6 +27,29 @@ using namespace octomap;
 #define QSR_MEAN_2 0
 #define QSR_VAR_1 1
 #define QSR_VAR_2 1
+
+
+OcTree* retrieve_octree()
+{
+  ros::NodeHandle n;
+  std::string servname = "octomap_binary";
+  ROS_INFO("Requesting the map from %s...", n.resolveName(servname).c_str());
+  GetOctomap::Request req;
+  GetOctomap::Response resp;
+  while(n.ok() && !ros::service::call(servname, req, resp))
+    {
+      ROS_WARN("Request to %s failed; trying again...", n.resolveName(servname).c_str());
+      usleep(1000000);
+    }
+ 
+  OcTree* octree = octomap_msgs::binaryMsgToMap(resp.map);
+
+  if (octree){
+    ROS_INFO("Map received (%zu nodes, %f m res)", octree->size(), octree->getResolution());
+    return octree;
+  }
+  return NULL;
+}
 
 
 double normal_dist_2d(double x, double y, double mean1, double var1, double mean2, double var2)
@@ -185,7 +212,7 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 {
 
   std::string map = "octomap.bt";
-  OcTree* input_tree = new OcTree(map);
+  OcTree* input_tree = retrieve_octree(); //new OcTree(map);
 
   std::cerr<<"Inside findProbabilityOfCones2D"<< std::endl;
   
@@ -259,7 +286,7 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 {
   std::string map = "octomap.bt";
-  OcTree* input_tree = new OcTree(map);
+  OcTree* input_tree = retrieve_octree(); //new OcTree(map);
   int free = 0;
   int occupied = 0;
 
@@ -887,7 +914,7 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  float camera_height = 1.0;
+  float camera_height = 1.6791;
 
 
   Cone cones2D_visualiser[num_poses2D];
@@ -1054,7 +1081,7 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  float camera_height = 1.0;
+  float camera_height = 1.6791;
 
   // Outputs
   //float weights[num_poses]; // Weights of random poses.
@@ -1178,8 +1205,9 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
 
   float pan[num_poses3D];
   float tilt[num_poses3D];
-  std::vector<float> pan_sorted(num_poses3D);
-  std::vector<float> tilt_sorted(num_poses3D);
+
+  std::vector<float> pan_sorted;
+  std::vector<float> tilt_sorted;
   
   for (int i = 0; i < num_poses3D; i++)
   {
