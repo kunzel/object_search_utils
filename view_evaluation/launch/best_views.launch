@@ -1,0 +1,16 @@
+<launch>
+
+    <!-- Creat, evaluate the view cones and find the best views -->
+    <!-- Parameters for views  -->
+		<param name="frustum_near" type="double" value="0.1"/>
+		<param name="frustum_far" type="double" value="2.0"/>
+		<param name="frustum_angle" type="double" value="45.0"/>
+		<param name="robot_height" type="double" value="1.0"/>
+		<param name="triangle_radius" type="double" value="0.5"/>
+		<param name="triangle_height" type="double" value="1.5"/>
+		<param name="octomap_path" type="string" value="/home/kkd236/catkin_ws/src/object_search_utils/view_evaluation/maps/tum_kitchen_octomap.bt"/>
+	
+    <!-- launch BestViews-->
+    <node pkg="view_evaluation" type="bestView" name="Best_Views">
+    </node>
+</launch>
