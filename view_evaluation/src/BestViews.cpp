@@ -18,6 +18,19 @@
 using namespace std;
 using namespace octomap;
 
+#define QSR_WEIGHT 100
+#define QSR_MEAN_1 0
+#define QSR_MEAN_2 0
+#define QSR_VAR_1 1
+#define QSR_VAR_2 1
+
+
+double normal_dist_2d(double x, double y, double mean1, double var1, double mean2, double var2)
+  {
+    return (1.0 / (2.0 * M_PI * sqrt(var1) * sqrt(var2)) * exp(-1 * ( pow(x - mean1,2) / ( 2.0 * var1) +  pow(y - mean2,2) / ( 2.0 * var2) )));
+  }
+
+
 float trapezoidal_shaped_func(float a, float b, float c, float d, float x)
 {  
   float min = std::min(std::min((x - a)/(b - a), (float) 1.0), (d - x)/(d - c));
@@ -144,8 +157,8 @@ bool checkInsideCone3D(float x, float y, float z, Frustum cone3D)
   Vec3 point(x, y, z);
   
   result = cone3D.pointInFrustum(point);
-  if (result)
-  std::cerr<< "Inside cone: "<< result<< std::endl;	
+  //if (result)
+  //std::cerr<< "Inside cone: "<< result<< std::endl;	
   return result;
 }
 
@@ -171,12 +184,6 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
 void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 {
 
-  //int mapArray[40][40];
-  //float probabilityArray[40][40];
-  
-  //int mapArray[map_height][map_width];
-  //float probabilityArray[4000][4000];
-  
   int count = 0;
   int occupied_count = 0;
   int occupied_count_check = 0;
@@ -184,64 +191,35 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
   int unknown_count = 0;
 
   std::cerr<< "inside findProbabilityOfCones2D:"<<  std::endl;
-  // //ofstream myfile;
-  // //myfile.open ("map_data.txt");
-
-  // for (int i = 0; i < map_height; i++) 
-  // {
-	// //myfile << std::endl;
-	// for (int j = 0; j < map_width; j++)
-  //       {
-  //         mapArray[i][j] = 0; //mapData.data[count++];
-	// 	//myfile << " "<< mapArray[i][j];
-	// 	if (mapArray[i][j] > 0)
-	// 		occupied_count++;
-	// 	else if (mapArray[i][j] == 0)
-	// 		free_count++;
-	// 	else
-	// 		unknown_count++;
-	// 	//std::cerr << " " <<mapArray[i][j];
-	// }
-  // }
-  //myfile.close();	
-	
-  //createProbabilityArray(probabilityArray);
-  // for (int i = 0; i < map_height; i++) 
-  // {
-	// //std::cerr<< std:: endl << std:: endl;
-	// for (int j = 0; j < map_width; j++)
-  //       {
-	// 	probabilityArray[i][j] = 1.0;
-	// }
-  // }
   
   for (int i = 0; i < map_height; i++)
-  {
-	for (int j = 0; j < map_width; j++)
-	{
-		if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
-		{
-			occupied_count_check++;
-			//cones2D[i].id = i;
-			//std::cerr << " "<< occupied_count_check;
-			for (int k = 0; k < num_poses2D; k++)
-			{
-				//std::cerr<< "outside :"<< checkInsideCone2D(i, j, cones2D[k])<< std::endl;
-				//std::cerr<< "k:"<< k<< std::endl;
-				if (checkInsideCone2D(j, i, cones2D[k]))
-				{
-					//std::cerr<< "inside :"<< checkInsideCone2D(i, j, cones2D[k])<< std::endl;
-					cones2D[k].probability += 1; //probabilityArray[i][j];
-					//std::cerr<< "k :"<< k <<"propb: "<<cones2D[k].probability<<"proparray: "<<probabilityArray[i][j]<< std::endl;
-				}
-	  		}
-		}
-	}
-  }
+    {
+      for (int j = 0; j < map_width; j++)
+        {
+          if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
+            {
+              occupied_count_check++;
+              for (int k = 0; k < num_poses2D; k++)
+                {
+                  if (checkInsideCone2D(j, i, cones2D[k]))
+                    {
+                      cones2D[k].probability += 1; 
+
+                      double x_pos = j * map_resolution + map_origin_x;
+                      double y_pos = i * map_resolution + map_origin_y;
+            
+                      cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x_pos, y_pos , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+
+
+                    }
+                }
+            }
+        }
+    }
   for (int k = 0; k < num_poses2D; k++)
-  {
-	std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
-  }
+    {
+      std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
+    }
 }
 
 
@@ -276,7 +254,8 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 		{
 			if (checkInsideCone3D(x, y, z, frustum[i]))
 			{
-				frustum[i].probability += 1;
+        
+				frustum[i].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
 			}
 			
 		} 
@@ -702,16 +681,8 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
         max_probability = frustum[j].probability;
     }
 
-  std::cerr<< "max_probability = " << max_probability<< std::endl;
-
 	for (int j = 0; j < num_poses3D; j++)
 	{
-    std::cerr<<"probability/max_probability = " << frustum[j].probability/max_probability<< std::endl;
-    
-    std::cerr<<"r " << r_func(frustum[j].probability/max_probability)<< std::endl;    
-    std::cerr<<"g " << g_func(frustum[j].probability/max_probability)<< std::endl;    
-    std::cerr<<"b " << b_func(frustum[j].probability/max_probability)<< std::endl;
-
 
 		geometry_msgs::Point p[num_points_frustum];
 
