@@ -1,5 +1,8 @@
 <launch>
 
+
+    <node pkg="plane_segmentation" type="pcl_node" name="plane_segmentation"/>
+
     <!-- size of the voxels in the octomap in m? -->
     <arg name="res" default="0.05"/>
 
