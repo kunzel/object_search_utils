@@ -121,15 +121,15 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  std::vector<float> pan(num_random_poses3D);
-  pan.push_back (25.0);
-  pan.push_back (65.0);
-  pan.push_back (85.0);
+  std::vector<float> pan;
+  pan.push_back (0.0);
+  pan.push_back (0.5);
+  pan.push_back (-0.5);
 
-  std::vector<float> tilt(num_random_poses3D);
-  tilt.push_back (90.0);
-  tilt.push_back (45.0);
-  tilt.push_back (10.0);
+  std::vector<float> tilt;
+  tilt.push_back (0.0);
+  tilt.push_back (0.5);
+  tilt.push_back (-0.5);
   
   srv_node_3D.request.randomPoses = poseArray2D;
   srv_node_3D.request.pan_angles = pan;
@@ -194,7 +194,9 @@ int main(int argc, char **argv)
         pub_bestCones2D.publish(bestCone2D_markers);
 	pub_cones3D.publish(cone3D_markers);
 	pub_poses2D.publish(poses2D);
- 	//pub_poses3D.publish(poses3D);
+ 	
+  //sleep(10);
+  //pub_poses3D.publish(poses3D);
 	
 /*
 	for( int i = 0; i < num_poses3D; i++) 

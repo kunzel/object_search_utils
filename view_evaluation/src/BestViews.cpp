@@ -18,6 +18,58 @@
 using namespace std;
 using namespace octomap;
 
+float trapezoidal_shaped_func(float a, float b, float c, float d, float x)
+{  
+  float min = std::min(std::min((x - a)/(b - a), (float) 1.0), (d - x)/(d - c));
+  return std::max(min, (float) 0.0);
+}
+
+
+float r_func(float x)
+{
+  float a = -0.125;
+  float b =  0.125;
+  float c =  0.375;
+  float d =  0.625;
+
+  x = 1.0 - x;
+  
+  float value = trapezoidal_shaped_func(a,b,c,d,x);
+  
+  return value;
+}
+
+float g_func(float x)
+{
+  float a =  0.125;
+  float b =  0.375;
+  float c =  0.625;
+  float d =  0.875;
+
+  x = 1.0 - x;
+  
+  float value = trapezoidal_shaped_func(a,b,c,d,x);
+  
+  return value;
+}
+
+float b_func(float x)
+{
+  float a =  0.375;
+  float b =  0.625;
+  float c =  0.875;
+  float d =  1.125;
+  
+  x = 1.0 - x;
+  
+  float value = trapezoidal_shaped_func(a,b,c,d,x);
+  
+  return value;
+}
+
+
+
+
 class Cone
 {
   public:
@@ -616,7 +668,7 @@ visualization_msgs::MarkerArray drawBestCones2D(Cone cones2D_visualiser[], int n
 	cone2D_markers.markers[i].scale.y = 0.3;
 	cone2D_markers.markers[i].scale.z = 0.3;
 	cone2D_markers.markers[i].color.a = 1.0;
-   	cone2D_markers.markers[i].color.b = 1.0;
+  cone2D_markers.markers[i].color.b = 1.0;
 	cone2D_markers.markers[i].color.r = 0.0;
 	cone2D_markers.markers[i].color.g = 0.0;
 		
@@ -642,8 +694,25 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
 
 	cone3D_markers.markers.resize(num_poses3D * num_lines_frustum);	
 	std::cerr << "cone3D_markers inside function: " <<cone3D_markers.markers.size() << std::endl;
+
+  float max_probability = 0.0000001;
+  for (int j = 0; j < num_poses3D; j++)
+    {
+      if (frustum[j].probability > max_probability)
+        max_probability = frustum[j].probability;
+    }
+
+  std::cerr<< "max_probability = " << max_probability<< std::endl;
+
 	for (int j = 0; j < num_poses3D; j++)
 	{
+    std::cerr<<"probability/max_probability = " << frustum[j].probability/max_probability<< std::endl;
+    
+    std::cerr<<"r " << r_func(frustum[j].probability/max_probability)<< std::endl;    
+    std::cerr<<"g " << g_func(frustum[j].probability/max_probability)<< std::endl;    
+    std::cerr<<"b " << b_func(frustum[j].probability/max_probability)<< std::endl;
+
+
 		geometry_msgs::Point p[num_points_frustum];
 
 		p[0].x = frustum[j].ntl.x;
@@ -672,109 +741,113 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
 		p[7].y = frustum[j].fbr.y;
 		p[7].z = frustum[j].fbr.z;
 
+    
+    cone3D_markers.markers[j].header.frame_id = "map";
+    cone3D_markers.markers[j].header.stamp = ros::Time(); // Duration
+    cone3D_markers.markers[j].ns = "map"; // Namespace
+    cone3D_markers.markers[j].id = id; // Id
+    //std::cerr<<"id = "<< id<< std::endl;
+    cone3D_markers.markers[j].type = visualization_msgs::Marker::LINE_LIST; // Markers are ofTRIANGLE_LIST type.
+    cone3D_markers.markers[j].scale.x = 0.01;
+    cone3D_markers.markers[j].scale.y = 0.01;
+    cone3D_markers.markers[j].scale.z = 0.01;
+    cone3D_markers.markers[j].color.a = 1.0;
+    cone3D_markers.markers[j].color.b = b_func(frustum[j].probability/max_probability);
+    cone3D_markers.markers[j].color.r = r_func(frustum[j].probability/max_probability);
+    cone3D_markers.markers[j].color.g = g_func(frustum[j].probability/max_probability);
+
+
+
 		for (int i = 0; i < num_lines_frustum; i++)
 		{
-			cone3D_markers.markers[i].header.frame_id = "map";
-		      	cone3D_markers.markers[i].header.stamp = ros::Time(); // Duration
-		      	cone3D_markers.markers[i].ns = "map"; // Namespace
-			cone3D_markers.markers[i].id = id; // Id
-			//std::cerr<<"id = "<< id<< std::endl;
-			cone3D_markers.markers[i].type = visualization_msgs::Marker::LINE_LIST; // Markers are ofTRIANGLE_LIST type.
-			cone3D_markers.markers[i].scale.x = 0.01;
-			cone3D_markers.markers[i].scale.y = 0.01;
-			cone3D_markers.markers[i].scale.z = 0.01;
-			cone3D_markers.markers[i].color.a = 1.0;
-	   		cone3D_markers.markers[i].color.b = 1.0;
-			cone3D_markers.markers[i].color.r = 0.0;
-			cone3D_markers.markers[i].color.g = 0.0;
 			switch(i)
 			{
 				case 0 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[0]);
-						cone3D_markers.markers[i].points.push_back(p[1]);
+						cone3D_markers.markers[j].points.push_back(p[0]);
+						cone3D_markers.markers[j].points.push_back(p[1]);
 					}
 					break;
 				case 1 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[2]);
-						cone3D_markers.markers[i].points.push_back(p[3]);
+						cone3D_markers.markers[j].points.push_back(p[2]);
+						cone3D_markers.markers[j].points.push_back(p[3]);
 					}
 					break;
 
 				case 2 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[0]);
-						cone3D_markers.markers[i].points.push_back(p[2]);
+						cone3D_markers.markers[j].points.push_back(p[0]);
+						cone3D_markers.markers[j].points.push_back(p[2]);
 					}
 					break;
 				
 
 				case 3 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[1]);
-						cone3D_markers.markers[i].points.push_back(p[3]);
+						cone3D_markers.markers[j].points.push_back(p[1]);
+						cone3D_markers.markers[j].points.push_back(p[3]);
 					}
 					break;
 
 				case 4 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[4]);
-						cone3D_markers.markers[i].points.push_back(p[5]);
+						cone3D_markers.markers[j].points.push_back(p[4]);
+						cone3D_markers.markers[j].points.push_back(p[5]);
 					}
 					break;
 				case 5 : //comment this case if 3d frustum confuses you to distinguish all sides properly.
 					{
-						cone3D_markers.markers[i].points.push_back(p[6]);
-						cone3D_markers.markers[i].points.push_back(p[7]);
+						cone3D_markers.markers[j].points.push_back(p[6]);
+						cone3D_markers.markers[j].points.push_back(p[7]);
 					}
 					break;
 
 				case 6 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[4]);
-						cone3D_markers.markers[i].points.push_back(p[6]);
+						cone3D_markers.markers[j].points.push_back(p[4]);
+						cone3D_markers.markers[j].points.push_back(p[6]);
 					}
 					break;
 
 				case 7 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[5]);
-						cone3D_markers.markers[i].points.push_back(p[7]);
+						cone3D_markers.markers[j].points.push_back(p[5]);
+						cone3D_markers.markers[j].points.push_back(p[7]);
 					}
 					break;
 				case 8 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[0]);
-						cone3D_markers.markers[i].points.push_back(p[4]);
+						cone3D_markers.markers[j].points.push_back(p[0]);
+						cone3D_markers.markers[j].points.push_back(p[4]);
 					}
 					break;
 				case 9 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[2]);
-						cone3D_markers.markers[i].points.push_back(p[6]);
+						cone3D_markers.markers[j].points.push_back(p[2]);
+						cone3D_markers.markers[j].points.push_back(p[6]);
 					}
 					break;
 
 				case 10 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[1]);
-						cone3D_markers.markers[i].points.push_back(p[5]);
+						cone3D_markers.markers[j].points.push_back(p[1]);
+						cone3D_markers.markers[j].points.push_back(p[5]);
 					}
 					break;
 
 				case 11 :
 					{
-						cone3D_markers.markers[i].points.push_back(p[3]);
-						cone3D_markers.markers[i].points.push_back(p[7]);
+						cone3D_markers.markers[j].points.push_back(p[3]);
+						cone3D_markers.markers[j].points.push_back(p[7]);
 					}
 					break;
 			}
 			id++;
-			if (cone3D_markers.markers[i].points.size() >= 0)
-				cone3D_markers.markers[i].action = visualization_msgs::Marker::ADD;
+			if (cone3D_markers.markers[j].points.size() >= 0)
+				cone3D_markers.markers[j].action = visualization_msgs::Marker::ADD;
 	      		else
-				cone3D_markers.markers[i].action = visualization_msgs::Marker::DELETE;
+				cone3D_markers.markers[j].action = visualization_msgs::Marker::DELETE;
 		}
 	}
  
@@ -803,8 +876,8 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
   //float tilt_angles[tilt_angles_size]; // Tilt angles
   std::vector<float> pan_angles(req.pan_angles);
   std::vector<float> tilt_angles(req.tilt_angles);
-  int pan_angles_size = pan_angles.size() / 2.0;
-  int tilt_angles_size = tilt_angles.size() / 2.0;
+  int pan_angles_size = pan_angles.size();
+  int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
   float camera_height = 1.0;
 
@@ -831,12 +904,8 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
 
   // Pass the 'n' best 2D poses calculated with different pan and tilt angles to find the best 3D Views.
   geometry_msgs::PoseArray poseArray3D; // Random 3D poses.
-  geometry_msgs::Quaternion q[num_poses3D];
- 
-  for (int i = 0; i < num_poses3D; i++)
-  {
-	q[i] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(i), tilt_angles.at(i));
-  }
+  geometry_msgs::Quaternion q[num_bestPoses2D][num_poses3D];
+
 
   /*q[0] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(0), tilt_angles.at(0));
   q[1] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(0), tilt_angles.at(1));
@@ -854,7 +923,29 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
   {
 	poseArray3D.poses.push_back(poseArray2D.poses[bestPosesIndex[i]]);
   }
+
+  float pitch_robot[num_bestPoses2D];
+  float yaw_robot[num_bestPoses2D];
   
+  for (int i = 0; i < num_bestPoses2D; i++)
+    {
+      tf::Quaternion qq;
+      tf::quaternionMsgToTF (poseArray3D.poses[i].orientation, qq);
+      tf::Matrix3x3 m(qq);
+      double roll, pitch, yaw;
+      m.getRPY(roll, pitch, yaw);
+      pitch_robot[i] = pitch;
+      yaw_robot[i] = yaw;
+    }
+  
+  for (int i = 0; i < num_bestPoses2D; i++)
+    {
+      for (int j = 0; j < num_poses3D; j++)
+        {
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+        }
+    }
+
   Frustum cones3D_visualiser[num_bestPoses2D][num_poses3D];
 
   //std::cerr<< " pan size: "<< pan_angles_size<< std::endl;
@@ -869,7 +960,7 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
 		geometry_msgs::Pose pose;
 		pose = 	poseArray3D.poses[i];
 		pose.position.z = camera_height;
-		pose.orientation = q[j];
+		pose.orientation = q[i][j];
 		poseArray3D_temp.poses.push_back(pose);	
 		poseArray3D_tempp.poses.push_back(pose);	
 	}
@@ -973,7 +1064,6 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   // Find the probability distribution for each view cones generated.
   findProbabilityOfCones2D(cones2D, num_poses2D);
 
-  std::cerr << "FOO" << std::endl;
 
   // Find the best poses index in sorted order based on the probabilities calculated before.
   findBestCone2D(cones2D, num_poses2D, bestPosesIndex);
@@ -985,12 +1075,8 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
 
   // Pass the 'n' best 2D poses calculated with different pan and tilt angles to find the best 3D Views.
   geometry_msgs::PoseArray poseArray3D; // Random 3D poses.
-  geometry_msgs::Quaternion q[num_poses3D];
+  geometry_msgs::Quaternion q[num_bestPoses2D][num_poses3D];
  
-  for (int i = 0; i < num_poses3D; i++)
-  {
-	q[i] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(i), tilt_angles.at(i));
-  }
 
   /*q[0] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(0), tilt_angles.at(0));
   q[1] = tf::createQuaternionMsgFromRollPitchYaw(0, pan_angles.at(0), tilt_angles.at(1));
@@ -1008,6 +1094,29 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   {
 	poseArray3D.poses.push_back(poseArray2D.poses[bestPosesIndex[i]]);
   }
+
+  float pitch_robot[num_bestPoses2D];
+  float yaw_robot[num_bestPoses2D];
+  
+  for (int i = 0; i < num_bestPoses2D; i++)
+    {
+      tf::Quaternion qq;
+      tf::quaternionMsgToTF (poseArray3D.poses[i].orientation, qq);
+      tf::Matrix3x3 m(qq);
+      double roll, pitch, yaw;
+      m.getRPY(roll, pitch, yaw);
+      pitch_robot[i] = pitch;
+      yaw_robot[i] = yaw;
+    }
+
+  for (int i = 0; i < num_bestPoses2D; i++)
+    {
+      for (int j = 0; j < num_poses3D; j++)
+        {
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+        }
+    }
+
   
   Frustum cones3D[num_bestPoses2D][num_poses3D];
 
@@ -1022,7 +1131,7 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
 		geometry_msgs::Pose pose;
 		pose = 	poseArray3D.poses[i];
 		pose.position.z = camera_height;
-		pose.orientation = q[j];
+		pose.orientation = q[i][j];
 		poseArray3D_temp.poses.push_back(pose);		
 	}
 
@@ -1067,8 +1176,10 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   for (int i = 0; i < num_poses3D; i++)
   {
 	tf::Quaternion qq;
-	tf::quaternionMsgToTF (q[i], qq);
-	tf::Matrix3x3 m(qq);
+	//tf::quaternionMsgToTF (q[i], qq);
+	tf::quaternionMsgToTF (q[bestPosesIndex3D[0]][i], qq);
+
+  tf::Matrix3x3 m(qq);
   	double roll, pitch, yaw;
   	m.getRPY(roll, pitch, yaw);
 	pan[i] = pitch;
