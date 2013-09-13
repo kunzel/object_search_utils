@@ -15,8 +15,48 @@
 #include <view_evaluation/BestViews.h>
 #include "view_evaluation/BestViewsVisualiser.h"
 
+#include "octomap_msgs/GetOctomap.h"
+using octomap_msgs::GetOctomap;
+#include <octomap_msgs/conversions.h>
+
 using namespace std;
 using namespace octomap;
+
+#define QSR_WEIGHT 100
+#define QSR_MEAN_1 0
+#define QSR_MEAN_2 0
+#define QSR_VAR_1 1
+#define QSR_VAR_2 1
+
+
+OcTree* retrieve_octree()
+{
+  ros::NodeHandle n;
+  std::string servname = "octomap_binary";
+  ROS_INFO("Requesting the map from %s...", n.resolveName(servname).c_str());
+  GetOctomap::Request req;
+  GetOctomap::Response resp;
+  while(n.ok() && !ros::service::call(servname, req, resp))
+    {
+      ROS_WARN("Request to %s failed; trying again...", n.resolveName(servname).c_str());
+      usleep(1000000);
+    }
+ 
+  OcTree* octree = octomap_msgs::binaryMsgToMap(resp.map);
+
+  if (octree){
+    ROS_INFO("Map received (%zu nodes, %f m res)", octree->size(), octree->getResolution());
+    return octree;
+  }
+  return NULL;
+}
+
+
+double normal_dist_2d(double x, double y, double mean1, double var1, double mean2, double var2)
+  {
+    return (1.0 / (2.0 * M_PI * sqrt(var1) * sqrt(var2)) * exp(-1 * ( pow(x - mean1,2) / ( 2.0 * var1) +  pow(y - mean2,2) / ( 2.0 * var2) )));
+  }
+
 
 float trapezoidal_shaped_func(float a, float b, float c, float d, float x)
 {  
@@ -151,8 +191,8 @@ bool checkInsideCone3D(float x, float y, float z, Frustum cone3D)
   Vec3 point(x, y, z);
   
   result = cone3D.pointInFrustum(point);
-  if (result)
-  std::cerr<< "Inside cone: "<< result<< std::endl;	
+  //if (result)
+  //std::cerr<< "Inside cone: "<< result<< std::endl;	
   return result;
 }
 
@@ -161,9 +201,9 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
 {
   float cell_x, cell_y;
   //std::cerr << "inside checkInsideCone2D " <<x<<y << std::endl;
-  cell_x = x * map_resolution + map_origin_x;
-  cell_y = y * map_resolution + map_origin_y;
-  if (checkInsideTraingle(cell_x, cell_y, cone2D) || insideCircle(cell_x, cell_y, cone2D))
+  //cell_x = x * map_resolution + map_origin_x;
+  //cell_y = y * map_resolution + map_origin_y;
+  if(checkInsideTraingle(x, y, cone2D) || insideCircle(x, y, cone2D))
   {
 	//std::cerr << "checkInsideCone2D true " <<x<<y << std::endl;
   	return true;
@@ -178,87 +218,84 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
 void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
 {
 
-  //int mapArray[40][40];
-  //float probabilityArray[40][40];
-  
-  //int mapArray[map_height][map_width];
-  //float probabilityArray[4000][4000];
-  
-  int count = 0;
-  int occupied_count = 0;
-  int occupied_count_check = 0;
-  int free_count = 0;
-  int unknown_count = 0;
+  std::string map = "octomap.bt";
+  OcTree* input_tree = retrieve_octree(); //new OcTree(map);
 
-  std::cerr<< "inside findProbabilityOfCones2D:"<<  std::endl;
-  // //ofstream myfile;
-  // //myfile.open ("map_data.txt");
-
-  // for (int i = 0; i < map_height; i++) 
-  // {
-	// //myfile << std::endl;
-	// for (int j = 0; j < map_width; j++)
-  //       {
-  //         mapArray[i][j] = 0; //mapData.data[count++];
-	// 	//myfile << " "<< mapArray[i][j];
-	// 	if (mapArray[i][j] > 0)
-	// 		occupied_count++;
-	// 	else if (mapArray[i][j] == 0)
-	// 		free_count++;
-	// 	else
-	// 		unknown_count++;
-	// 	//std::cerr << " " <<mapArray[i][j];
-	// }
-  // }
-  //myfile.close();	
-	
-  //createProbabilityArray(probabilityArray);
-  // for (int i = 0; i < map_height; i++) 
-  // {
-	// //std::cerr<< std:: endl << std:: endl;
-	// for (int j = 0; j < map_width; j++)
-  //       {
-	// 	probabilityArray[i][j] = 1.0;
-	// }
-  // }
+  std::cerr<<"Inside findProbabilityOfCones2D"<< std::endl;
   
-  for (int i = 0; i < map_height; i++)
-  {
-	for (int j = 0; j < map_width; j++)
-	{
-		if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
-		{
-			occupied_count_check++;
-			//cones2D[i].id = i;
-			//std::cerr << " "<< occupied_count_check;
-			for (int k = 0; k < num_poses2D; k++)
-			{
-				//std::cerr<< "outside :"<< checkInsideCone2D(i, j, cones2D[k])<< std::endl;
-				//std::cerr<< "k:"<< k<< std::endl;
-				if (checkInsideCone2D(j, i, cones2D[k]))
-				{
-					//std::cerr<< "inside :"<< checkInsideCone2D(i, j, cones2D[k])<< std::endl;
-					cones2D[k].probability += 1; //probabilityArray[i][j];
-					//std::cerr<< "k :"<< k <<"propb: "<<cones2D[k].probability<<"proparray: "<<probabilityArray[i][j]<< std::endl;
-				}
-	  		}
-		}
-	}
-  }
+  for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
+        end=input_tree->end_leafs(); it!= end; ++it)
+    {
+      if (input_tree->isNodeOccupied(*it))
+        {
+          point3d p3d = it.getCoordinate();
+
+          double x = p3d.x();
+          double y = p3d.y();
+               
+          for (int k = 0; k < num_poses2D; k++)
+            {
+              if (checkInsideCone2D(y, x, cones2D[k]))
+                {
+                  //cones2D[k].probability += 1; 
+                  cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+                }
+            } 
+          
+        }
+    }
+
   for (int k = 0; k < num_poses2D; k++)
-  {
-	std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
-  }
+    {
+      std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
+    }
+  
+  // int count = 0;
+  // int occupied_count = 0;
+  // int occupied_count_check = 0;
+  // int free_count = 0;
+  // int unknown_count = 0;
+
+  // std::cerr<< "inside findProbabilityOfCones2D:"<<  std::endl;
+  
+  // for (int i = 0; i < map_height; i++)
+  //   {
+  //     for (int j = 0; j < map_width; j++)
+  //       {
+  //         if (mapData.data[i*map_width+j] > 0)//(mapArray[i][j] > 0)
+  //           {
+  //             occupied_count_check++;
+  //             for (int k = 0; k < num_poses2D; k++)
+  //               {
+  //                 if (checkInsideCone2D(j, i, cones2D[k]))
+  //                   {
+  //                     cones2D[k].probability += 1; 
+
+  //                     double x_pos = j * map_resolution + map_origin_x;
+  //                     double y_pos = i * map_resolution + map_origin_y;
+            
+  //                     cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x_pos, y_pos , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+
+
+  //                   }
+  //               }
+  //           }
+  //       }
+  //   }
+  // for (int k = 0; k < num_poses2D; k++)
+  //   {
+  //     std::cerr<< std::endl<< "cone-"<< k <<" = "<<cones2D[k].probability<< std::endl;
+  //   }
 }
 
 
 //float xx[70000], yy[70000], zz[70000];
 void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 {
-  OcTree* input_tree = new OcTree(octomap_path);
+
+  OcTree* input_tree = retrieve_octree(); //new OcTree(map)
   int free = 0;
   int occupied = 0;
-
 
   std::cerr<<"Inside findProbabilityOfCones3D"<< std::endl;
     for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
@@ -282,7 +319,8 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 		{
 			if (checkInsideCone3D(x, y, z, frustum[i]))
 			{
-				frustum[i].probability += 1;
+        
+				frustum[i].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
 			}
 			
 		} 
@@ -295,10 +333,6 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
     }
     std::cerr<<"occupied "<< occupied<< std::endl;
     std::cerr<<"free "<< free<< std::endl;
-    for (int i = 0; i < num_poses3D; i++)
-    {
- 	//std::cerr<<"After Probability 3D Cone "<<i<< ": "<< frustum[i].probability<< std::endl;
-    }
 
 }
 
@@ -613,6 +647,14 @@ visualization_msgs::MarkerArray drawCones2D(Cone cones2D_visualiser[], int num_p
   visualization_msgs::MarkerArray cone2D_markers;
   cone2D_markers.markers.resize(num_poses2D);
 
+  float max_probability = 0.0000001;
+  for (int j = 0; j < num_poses2D; j++)
+    {
+      if (cones2D_visualiser[j].probability > max_probability)
+        max_probability = cones2D_visualiser[j].probability;
+    }
+  
+
   for (unsigned i = 0; i < num_poses2D; i++)
   {
 	geometry_msgs::Point p1, p2, p3;
@@ -640,10 +682,11 @@ visualization_msgs::MarkerArray drawCones2D(Cone cones2D_visualiser[], int num_p
 	cone2D_markers.markers[i].scale.y = 1.0;
 	cone2D_markers.markers[i].scale.z = 1.0;
 	cone2D_markers.markers[i].color.a = 0.6;
-   	cone2D_markers.markers[i].color.b = 0.0;
-	cone2D_markers.markers[i].color.r = 1.0;
-	cone2D_markers.markers[i].color.g = 0.0;
 		
+  cone2D_markers.markers[i].color.b = b_func(cones2D_visualiser[i].probability/max_probability);
+  cone2D_markers.markers[i].color.r = r_func(cones2D_visualiser[i].probability/max_probability);
+  cone2D_markers.markers[i].color.g = g_func(cones2D_visualiser[i].probability/max_probability);
+
 	
 	//std::cerr << "size in server: "<< cone2D_markers.markers[i].points.size() << std::endl;
 	     
@@ -717,16 +760,8 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
         max_probability = frustum[j].probability;
     }
 
-  std::cerr<< "max_probability = " << max_probability<< std::endl;
-
 	for (int j = 0; j < num_poses3D; j++)
 	{
-    std::cerr<<"probability/max_probability = " << frustum[j].probability/max_probability<< std::endl;
-    
-    std::cerr<<"r " << r_func(frustum[j].probability/max_probability)<< std::endl;    
-    std::cerr<<"g " << g_func(frustum[j].probability/max_probability)<< std::endl;    
-    std::cerr<<"b " << b_func(frustum[j].probability/max_probability)<< std::endl;
-
 
 		geometry_msgs::Point p[num_points_frustum];
 
@@ -757,7 +792,7 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
 		p[7].z = frustum[j].fbr.z;
 
     
-    cone3D_markers.markers[j].header.frame_id = "map";
+    cone3D_markers.markers[j].header.frame_id = "/map";
     cone3D_markers.markers[j].header.stamp = ros::Time(); // Duration
     cone3D_markers.markers[j].ns = "map"; // Namespace
     cone3D_markers.markers[j].id = id; // Id
@@ -894,9 +929,6 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  //float camera_height = 1.0;
-
-
   Cone cones2D_visualiser[num_poses2D];
 
   
@@ -957,7 +989,7 @@ bool serviceBestViewsVisualiser(view_evaluation::BestViewsVisualiser::Request  &
     {
       for (int j = 0; j < num_poses3D; j++)
         {
-          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + tilt_angles.at(j), yaw_robot[i] + pan_angles.at(j));
         }
     }
 
@@ -1061,7 +1093,6 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   int pan_angles_size = pan_angles.size();
   int tilt_angles_size = tilt_angles.size();
   int num_poses3D = pan_angles_size;
-  //float camera_height = 1.0;
 
   // Outputs
   //float weights[num_poses]; // Weights of random poses.
@@ -1128,7 +1159,7 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
     {
       for (int j = 0; j < num_poses3D; j++)
         {
-          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + pan_angles.at(j), yaw_robot[i] + tilt_angles.at(j));
+          q[i][j] = tf::createQuaternionMsgFromRollPitchYaw(0, pitch_robot[i] + tilt_angles.at(j), yaw_robot[i] + pan_angles.at(j));
         }
     }
 
@@ -1183,30 +1214,34 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   }
   findBestPanTilt(cones3D[bestPosesIndex3D[0]], num_poses3D, bestPanTiltIndex);
 
-  float pan[num_poses3D];
-  float tilt[num_poses3D];
-  std::vector<float> pan_sorted(num_poses3D);
-  std::vector<float> tilt_sorted(num_poses3D);
+  //float pan[num_poses3D];
+  //float tilt[num_poses3D];
+
+  
+  // for (int i = 0; i < num_poses3D; i++)
+  //   {
+  //     tf::Quaternion qq;
+  //     //tf::quaternionMsgToTF (q[i], qq);
+  //     tf::quaternionMsgToTF (q[bestPosesIndex3D[0]][i], qq);
+      
+  //     tf::Matrix3x3 m(qq);
+  //     double roll, pitch, yaw;
+  //     m.getRPY(roll, pitch, yaw);
+  //     pan[i] = pitch;
+  //     tilt[i] = yaw;
+  //     //bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
+  //   }
+
+  std::vector<float> pan_sorted;
+  std::vector<float> tilt_sorted;
+  
   
   for (int i = 0; i < num_poses3D; i++)
-  {
-	tf::Quaternion qq;
-	//tf::quaternionMsgToTF (q[i], qq);
-	tf::quaternionMsgToTF (q[bestPosesIndex3D[0]][i], qq);
-
-  tf::Matrix3x3 m(qq);
-  	double roll, pitch, yaw;
-  	m.getRPY(roll, pitch, yaw);
-	pan[i] = pitch;
-	tilt[i] = yaw;
-	//bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
-  }
-  for (int i = 0; i < num_poses3D; i++)
-  {
-	pan_sorted.push_back(pan[bestPanTiltIndex[i]]);
-	tilt_sorted.push_back(tilt[bestPanTiltIndex[i]]);
-	//bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
-  }
+    {
+      pan_sorted.push_back(pan_angles[bestPanTiltIndex[i]]);
+      tilt_sorted.push_back(tilt_angles[bestPanTiltIndex[i]]);
+      //bestPanTiltWeights.push_back(cones3D[bestPosesIndex3D[0][bestPanTiltIndex[i]].probability);
+    }
   
   // Update the results:
   res.bestPoses = bestPoseArray;
@@ -1276,7 +1311,7 @@ int main (int argc, char** argv)
   node.getParam("triangle_radius", radius);
   node.getParam("triangle_height", length);
   node.getParam("octomap_path", octomap_path);
-  std::cerr << "octomap_path: " <<octomap_path<< std::endl;
+  
 
   // Create a ROS subscriber for map data.
   ros::Subscriber sub_map = node.subscribe ("map", 1, process_map);

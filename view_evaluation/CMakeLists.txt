@@ -4,7 +4,7 @@ project(view_evaluation)
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
-find_package(catkin REQUIRED COMPONENTS genmsg message_generation nav_goals_generator nav_goals_msgs roscpp sensor_msgs visualization_msgs)
+find_package(catkin REQUIRED COMPONENTS genmsg message_generation octomap_msgs nav_goals_generator nav_goals_msgs roscpp sensor_msgs visualization_msgs)
 
 
 find_package(octomap 1.5.6 REQUIRED)
