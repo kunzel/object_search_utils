@@ -22,11 +22,40 @@ using octomap_msgs::GetOctomap;
 using namespace std;
 using namespace octomap;
 
-#define QSR_WEIGHT 100
-#define QSR_MEAN_1 0
-#define QSR_MEAN_2 0
+#define QSR_WEIGHT 0
+
+// Robot lab
+// #define QSR_MEAN_1 -3.1
+// #define QSR_MEAN_2 -5.5
+// #define QSR_VAR_1 1
+// #define QSR_VAR_2 1
+
+// #define QSR2_MEAN_1 -1.79
+// #define QSR2_MEAN_2  1.26
+// #define QSR2_VAR_1 1
+// #define QSR2_VAR_2 1
+
+// #define QSR3_MEAN_1 -1.79
+// #define QSR3_MEAN_2  1.26
+// #define QSR3_VAR_1 1
+// #define QSR3_VAR_2 1
+
+// TUM Kitchen
+
+#define QSR_MEAN_1 -3.1
+#define QSR_MEAN_2 -5.5
 #define QSR_VAR_1 1
 #define QSR_VAR_2 1
+
+#define QSR2_MEAN_1 -1.79
+#define QSR2_MEAN_2  1.26
+#define QSR2_VAR_1 1
+#define QSR2_VAR_2 1
+
+#define QSR3_MEAN_1 -1.79
+#define QSR3_MEAN_2  1.26
+#define QSR3_VAR_1 1
+#define QSR3_VAR_2 1
 
 
 OcTree* retrieve_octree()
@@ -203,7 +232,7 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
   //std::cerr << "inside checkInsideCone2D " <<x<<y << std::endl;
   //cell_x = x * map_resolution + map_origin_x;
   //cell_y = y * map_resolution + map_origin_y;
-  if(checkInsideTraingle(x, y, cone2D) || insideCircle(x, y, cone2D))
+  if(checkInsideTraingle(x, y, cone2D))// || insideCircle(x, y, cone2D))
   {
 	//std::cerr << "checkInsideCone2D true " <<x<<y << std::endl;
   	return true;
@@ -211,7 +240,7 @@ bool checkInsideCone2D(int x, int y, Cone cone2D)
   else
   {
 	//std::cerr << "checkInsideCone2D false " <<x<<y << std::endl;
-	return false;
+    return false;
   }
 }
 
@@ -235,10 +264,12 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
                
           for (int k = 0; k < num_poses2D; k++)
             {
-              if (checkInsideCone2D(y, x, cones2D[k]))
+              if (checkInsideCone2D(x, y, cones2D[k]))
                 {
-                  //cones2D[k].probability += 1; 
-                  cones2D[k].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+                  cones2D[k].probability += 1; 
+                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
+                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR2_MEAN_1 , QSR2_VAR_2 , QSR2_MEAN_2 , QSR2_VAR_2))); 
+                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR3_MEAN_1 , QSR3_VAR_1 , QSR3_MEAN_2 , QSR3_VAR_2))); 
                 }
             } 
           
@@ -320,7 +351,10 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 			if (checkInsideCone3D(x, y, z, frustum[i]))
 			{
         
-				frustum[i].probability += 1 + (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
+				frustum[i].probability += 1;
+        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
+        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR2_MEAN_1 , QSR2_VAR_1 , QSR2_MEAN_2 , QSR2_VAR_2)));
+        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR3_MEAN_1 , QSR3_VAR_1 , QSR3_MEAN_2 , QSR3_VAR_2)));
 			}
 			
 		} 
@@ -339,9 +373,11 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
 
 void generateCones2D(Cone cones[], int num_poses2D, geometry_msgs::PoseArray poseArray2D)
 {  
-  float left[] = { 2.0, -0.5};
-  float right[] = { 2.0, 0.5};
-  float middle[] = { 2.0, 0.0};
+  float left[] = { length, -radius};
+  float right[] = {  length, radius};
+  float middle[] = {  length, 0.0};
+
+
   tf::Transform tf_poses[num_poses2D];
 
   std::cerr << "inside generateCones2D" << std::endl;
@@ -429,9 +465,9 @@ fbr: -0.332542
 
 */
 
-  Vec3 p(0.0, 0.0, camera_height); // Camera position.
-  Vec3 l(2.0, 0.0, camera_height); // Look up vector.
-  Vec3 u(0, 0, 1); // Right vector.
+  Vec3 p(0.0, 0.0, 0.0);//camera_height); // Camera position.
+  Vec3 l(1.0, 0.0, 0.0);//camera_height); // Look up vector.
+  Vec3 u(0.0, 0.0, 1.0); // Right vector.
   frustum_temp.setCamInternals(frustum_angle, frustum_ratio, frustum_near, frustum_far);
   frustum_temp.setCamDef(p, l, u);
   points[0].x = frustum_temp.ntl.x;
@@ -681,7 +717,7 @@ visualization_msgs::MarkerArray drawCones2D(Cone cones2D_visualiser[], int num_p
 	cone2D_markers.markers[i].scale.x = 1.0;
 	cone2D_markers.markers[i].scale.y = 1.0;
 	cone2D_markers.markers[i].scale.z = 1.0;
-	cone2D_markers.markers[i].color.a = 0.6;
+	cone2D_markers.markers[i].color.a = r_func(cones2D_visualiser[i].probability/max_probability);
 		
   cone2D_markers.markers[i].color.b = b_func(cones2D_visualiser[i].probability/max_probability);
   cone2D_markers.markers[i].color.r = r_func(cones2D_visualiser[i].probability/max_probability);
@@ -801,7 +837,7 @@ visualization_msgs::MarkerArray drawCones3D(Frustum frustum[], int num_poses3D)
     cone3D_markers.markers[j].scale.x = 0.01;
     cone3D_markers.markers[j].scale.y = 0.01;
     cone3D_markers.markers[j].scale.z = 0.01;
-    cone3D_markers.markers[j].color.a = 1.0;
+    cone3D_markers.markers[j].color.a = r_func(frustum[j].probability/max_probability);
     cone3D_markers.markers[j].color.b = b_func(frustum[j].probability/max_probability);
     cone3D_markers.markers[j].color.r = r_func(frustum[j].probability/max_probability);
     cone3D_markers.markers[j].color.g = g_func(frustum[j].probability/max_probability);
