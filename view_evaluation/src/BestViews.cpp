@@ -11,9 +11,17 @@
 //#include "view_evaluation/tfCones.h"
 #include <visualization_msgs/MarkerArray.h>
 #include <tf/transform_datatypes.h>
+#include <tf/LinearMath/Matrix3x3.h>
+#include <tf/LinearMath/Quaternion.h>
+#include <math.h>
+
+
 #include "Vec33.cpp"
 #include <view_evaluation/BestViews.h>
 #include "view_evaluation/BestViewsVisualiser.h"
+
+#include "qsr_msgs/QSRToGMM.h"
+#include "qsr_msgs/Gaussian2D.h"
 
 #include "octomap_msgs/GetOctomap.h"
 using octomap_msgs::GetOctomap;
@@ -21,6 +29,7 @@ using octomap_msgs::GetOctomap;
 
 using namespace std;
 using namespace octomap;
+using namespace qsr_msgs;
 
 #define QSR_WEIGHT 0
 
@@ -42,20 +51,125 @@ using namespace octomap;
 
 // TUM Kitchen
 
-#define QSR_MEAN_1 -3.1
-#define QSR_MEAN_2 -5.5
-#define QSR_VAR_1 1
-#define QSR_VAR_2 1
+// #define QSR_MEAN_1 -3.1
+// #define QSR_MEAN_2 -5.5
+// #define QSR_VAR_1 1
+// #define QSR_VAR_2 1
 
-#define QSR2_MEAN_1 -1.79
-#define QSR2_MEAN_2  1.26
-#define QSR2_VAR_1 1
-#define QSR2_VAR_2 1
+// #define QSR2_MEAN_1 -1.79
+// #define QSR2_MEAN_2  1.26
+// #define QSR2_VAR_1 1
+// #define QSR2_VAR_2 1
 
-#define QSR3_MEAN_1 -1.79
-#define QSR3_MEAN_2  1.26
-#define QSR3_VAR_1 1
-#define QSR3_VAR_2 1
+// #define QSR3_MEAN_1 -1.79
+// #define QSR3_MEAN_2  1.26
+// #define QSR3_VAR_1 1
+// #define QSR3_VAR_2 1
+
+std::vector<float> qsr_weight;
+std::vector<float> qsr_mean_1;
+std::vector<float> qsr_mean_2;
+std::vector<float> qsr_covar_1;
+std::vector<float> qsr_covar_2;
+std::vector<float> qsr_covar_3;
+std::vector<float> qsr_covar_4;
+
+std::vector<geometry_msgs::Pose> qsr_landmark;
+std::vector<bool> swap_covar;
+
+int get_landmarks()
+{
+  ros::NodeHandle nh;
+  XmlRpc::XmlRpcValue lst;
+
+  if (nh.getParam("/qsr_landmark/id1/pose", lst))
+    {
+      //ROS_ASSERT(lst.getType() == XmlRpc::XmlRpcValue::TypeArray);
+      ROS_INFO("Got landmark: id1");
+      geometry_msgs::Pose p;
+
+      p.position.x = static_cast<double>(lst[0]);
+      p.position.y = static_cast<double>(lst[1]);
+      p.position.z = static_cast<double>(lst[2]);
+      p.orientation.w = static_cast<double>(lst[3]);
+      p.orientation.x = static_cast<double>(lst[4]);
+      p.orientation.y = static_cast<double>(lst[5]);
+      p.orientation.z = static_cast<double>(lst[6]);
+
+      ROS_INFO("id1 pose: (%f %f %f)", p.position.x, p.position.y, p.position.z);
+      qsr_landmark.push_back(p);
+    }  
+  if (nh.getParam("/qsr_landmark/id2/pose", lst))
+    {
+      //ROS_ASSERT(lst.getType() == XmlRpc::XmlRpcValue::TypeArray);
+      ROS_INFO("Got landmark: id2");
+      geometry_msgs::Pose p;
+
+      p.position.x = static_cast<double>(lst[0]);
+      p.position.y = static_cast<double>(lst[1]);
+      p.position.z = static_cast<double>(lst[2]);
+      p.orientation.w = static_cast<double>(lst[3]);
+      p.orientation.x = static_cast<double>(lst[4]);
+      p.orientation.y = static_cast<double>(lst[5]);
+      p.orientation.z = static_cast<double>(lst[6]);
+
+      ROS_INFO("id2 pose: (%f %f %f)", p.position.x, p.position.y, p.position.z);
+      qsr_landmark.push_back(p);
+    }  
+  if (nh.getParam("/qsr_landmark/id3/pose", lst))
+    {
+      //ROS_ASSERT(lst.getType() == XmlRpc::XmlRpcValue::TypeArray);
+      ROS_INFO("Got landmark: id3");
+      geometry_msgs::Pose p;
+
+      p.position.x = static_cast<double>(lst[0]);
+      p.position.y = static_cast<double>(lst[1]);
+      p.position.z = static_cast<double>(lst[2]);
+      p.orientation.w = static_cast<double>(lst[3]);
+      p.orientation.x = static_cast<double>(lst[4]);
+      p.orientation.y = static_cast<double>(lst[5]);
+      p.orientation.z = static_cast<double>(lst[6]);
+
+      ROS_INFO("id3 pose: (%f %f %f)", p.position.x, p.position.y, p.position.z);
+      qsr_landmark.push_back(p);
+    }  
+  
+  return 0;
+}
+
+int get_GMMs()
+{
+  ros::NodeHandle n;
+  std::string servname = "qsr_to_gmm";
+  ROS_INFO("Requesting the map from %s...", n.resolveName(servname).c_str());
+
+  QSRToGMM::Request req;
+  req.object = "Cup";
+  req.landmark = "Monitor";
+  QSRToGMM::Response res;
+  
+  if (ros::service::call(servname, req, res))
+  {
+    ROS_INFO("Got GMMs");
+    for(int i = 0; i != res.weight.size(); i++) 
+      {
+        ROS_INFO("weight: %f", res.weight[i]);
+        qsr_weight.push_back(res.weight[i]);
+        qsr_mean_1.push_back(res.gaussian[i].mean[0]);
+        qsr_mean_2.push_back(res.gaussian[i].mean[1]);
+        qsr_covar_1.push_back(res.gaussian[i].covariance[0]);
+        qsr_covar_2.push_back(res.gaussian[i].covariance[1]);
+        qsr_covar_3.push_back(res.gaussian[i].covariance[2]);
+        qsr_covar_4.push_back(res.gaussian[i].covariance[3]);
+      }
+  }
+  else
+  {
+    ROS_ERROR("Failed to call service qsr_to_gmm");
+    return 1;
+  }
+  return 0;
+}
 
 
 OcTree* retrieve_octree()
@@ -251,7 +365,9 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
   OcTree* input_tree = retrieve_octree(); //new OcTree(map);
 
   std::cerr<<"Inside findProbabilityOfCones2D"<< std::endl;
-  
+  std::cerr<<"landmark size:" <<  qsr_landmark.size() << std::endl;
+  std::cerr<<"qsr weights size:" <<  qsr_weight.size() << std::endl;
+
   for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
         end=input_tree->end_leafs(); it!= end; ++it)
     {
@@ -266,10 +382,72 @@ void findProbabilityOfCones2D(Cone cones2D[], int num_poses2D)
             {
               if (checkInsideCone2D(x, y, cones2D[k]))
                 {
-                  cones2D[k].probability += 1; 
-                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2))); 
-                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR2_MEAN_1 , QSR2_VAR_2 , QSR2_MEAN_2 , QSR2_VAR_2))); 
-                  cones2D[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR3_MEAN_1 , QSR3_VAR_1 , QSR3_MEAN_2 , QSR3_VAR_2))); 
+                  cones2D[k].probability += 0.1; 
+                  for (int l = 0; l < qsr_landmark.size(); l++)
+                    {
+                      for (int i = 0; i < qsr_weight.size(); i++)
+                        {
+                          float mean_1 = qsr_mean_1[i];
+                          float mean_2 = qsr_mean_2[i];
+                          float covar_1 = qsr_covar_1[i];
+                          float covar_2 = qsr_covar_2[i];
+                          float covar_3 = qsr_covar_3[i];
+                          float covar_4 = qsr_covar_4[i];
+                          
+
+                          // Rotate QSRs wrt landmark 
+                          tf::Quaternion q(qsr_landmark[l].orientation.x,
+                                           qsr_landmark[l].orientation.y,
+                                           qsr_landmark[l].orientation.z,
+                                           qsr_landmark[l].orientation.w);
+
+
+                          tf::Matrix3x3 rot(q);
+
+                          tf::Matrix3x3 inv_rot = rot.inverse();
+                          
+                          tf::Matrix3x3 sigma(covar_1, covar_2, 0.0, 
+                                              covar_3, covar_4, 0.0,
+                                              0.0, 0.0, 0.0);
+
+                          // rotate covariance matrix
+                          tf::Matrix3x3 rot_covar = (inv_rot * sigma) * rot;  
+
+                          tf::Vector3 vec1 = rot_covar.getRow(0);
+                          tf::Vector3 vec2 = rot_covar.getRow(1);
+                          
+                          float covar_1_r = vec1.getX();
+                          float covar_4_r = vec2.getY();
+
+                          tfScalar roll, pitch, yaw;
+                          rot.getRPY(roll, pitch, yaw);
+                          
+                          float mean_1_r = mean_1 * cos(yaw) - mean_2 * sin(yaw);
+                          float mean_2_r = mean_1 * sin(yaw) - mean_2 * cos(yaw);
+                          
+                          float mean_1_rt = mean_1_r + qsr_landmark[l].position.x;
+                          float mean_2_rt = mean_2_r + qsr_landmark[l].position.y;
+
+                          // ROS_INFO("LM(%i) LOCAL GMM(%i): (mean %f %f) (corvariance %f %f %f %f)",  l, i,
+                          //          qsr_mean_1[i],
+                          //          qsr_mean_2[i],
+                          //          qsr_covar_1[i],
+                          //          qsr_covar_2[i],
+                          //          qsr_covar_3[i],
+                          //          qsr_covar_4[i]);
+                          // ROS_INFO("LM(%i) GLOBAL GMM(%i): (mean %f %f) (corvariance %f %f)", l, i,
+                          //          mean_1_rt,
+                          //          mean_2_rt,
+                          //          covar_1_r,
+                          //          covar_4_r);
+                          
+
+                          cones2D[k].probability += (qsr_weight[i] * (normal_dist_2d(x, y, 
+                                                                                     mean_1_rt , covar_1_r , 
+                                                                                     mean_2_rt , covar_4_r)));
+ 
+                  }
+                  }
                 }
             } 
           
@@ -329,42 +507,94 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
   int occupied = 0;
 
   std::cerr<<"Inside findProbabilityOfCones3D"<< std::endl;
-    for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
+  for(OcTree::leaf_iterator it = input_tree->begin_leafs(),
         end=input_tree->end_leafs(); it!= end; ++it)
     {
       if (input_tree->isNodeOccupied(*it))
         {
-		double size = it.getSize();
-		double x = it.getX();
-		double y = it.getY();
-		double z = it.getZ();
-		//point3d p = it.getCoordinate();
-		//xx[occupied] = p.x;
-		//yy[occupied] = p.y;
-		//zz[occupied] = p.z;
-		occupied++;
-		//std::cerr<<"X: "<< x<< std::endl;
-		//std::cerr<<"Y: "<< y<< std::endl;
-		//std::cerr<<"Z: "<< z<< std::endl;
-		for (int i = 0; i < num_poses3D; i++)
-		{
-			if (checkInsideCone3D(x, y, z, frustum[i]))
-			{
-        
-				frustum[i].probability += 1;
-        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
-        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR2_MEAN_1 , QSR2_VAR_1 , QSR2_MEAN_2 , QSR2_VAR_2)));
-        frustum[i].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR3_MEAN_1 , QSR3_VAR_1 , QSR3_MEAN_2 , QSR3_VAR_2)));
-			}
-			
-		} 
+          double size = it.getSize();
+          double x = it.getX();
+          double y = it.getY();
+          double z = it.getZ();
+          //point3d p = it.getCoordinate();
+          //xx[occupied] = p.x;
+          //yy[occupied] = p.y;
+          //zz[occupied] = p.z;
+          occupied++;
+          //std::cerr<<"X: "<< x<< std::endl;
+          //std::cerr<<"Y: "<< y<< std::endl;
+          //std::cerr<<"Z: "<< z<< std::endl;
+          for (int k = 0; k < num_poses3D; k++)
+            {
+              if (checkInsideCone3D(x, y, z, frustum[k]))
+                {
+                  
+                  frustum[k].probability += 0.1;
 
-        } 
-	else 
+                  for (int l = 0; l < qsr_landmark.size(); l++)
+                    {
+                      for (int i = 0; i < qsr_weight.size(); i++)
+                        {
+                          float mean_1 = qsr_mean_1[i];
+                          float mean_2 = qsr_mean_2[i];
+                          float covar_1 = qsr_covar_1[i];
+                          float covar_2 = qsr_covar_2[i];
+                          float covar_3 = qsr_covar_3[i];
+                          float covar_4 = qsr_covar_4[i];
+                          
+                
+                          // Rotate QSRs wrt landmark 
+                          tf::Quaternion q(qsr_landmark[l].orientation.x,
+                                           qsr_landmark[l].orientation.y,
+                                           qsr_landmark[l].orientation.z,
+                                           qsr_landmark[l].orientation.w);
+                          
+                          
+                          tf::Matrix3x3 rot(q);
+                          
+                          tf::Matrix3x3 inv_rot = rot.inverse();
+                          
+                          tf::Matrix3x3 sigma(covar_1, covar_2, 0.0, 
+                                              covar_3, covar_4, 0.0,
+                                              0.0, 0.0, 0.0);
+                          
+                          // rotate covariance matrix
+                          tf::Matrix3x3 rot_covar = (inv_rot * sigma) * rot;  
+                
+                          tf::Vector3 vec1 = rot_covar.getRow(0);
+                          tf::Vector3 vec2 = rot_covar.getRow(1);
+                
+                          float covar_1_r = vec1.getX();
+                          float covar_4_r = vec2.getY();
+
+                          tfScalar roll, pitch, yaw;
+                          rot.getRPY(roll, pitch, yaw);
+                          
+                          float mean_1_r = mean_1 * cos(yaw) - mean_2 * sin(yaw);
+                          float mean_2_r = mean_1 * sin(yaw) - mean_2 * cos(yaw);
+                          
+                          float mean_1_rt = mean_1_r + qsr_landmark[l].position.x;
+                          float mean_2_rt = mean_2_r + qsr_landmark[l].position.y;
+
+                          frustum[k].probability += (qsr_weight[i] * (normal_dist_2d(x, y, 
+                                                                                     mean_1_rt , covar_1_r , 
+                                                                                     mean_2_rt , covar_4_r)));
+                          //frustum[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR_MEAN_1 , QSR_VAR_1 , QSR_MEAN_2 , QSR_VAR_2)));
+                          //frustum[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR2_MEAN_1 , QSR2_VAR_1 , QSR2_MEAN_2 , QSR2_VAR_2)));
+                          //frustum[k].probability += (QSR_WEIGHT * (normal_dist_2d(x, y , QSR3_MEAN_1 , QSR3_VAR_1 , QSR3_MEAN_2 , QSR3_VAR_2)));
+                          
+                                         }
+                  }
+                }
+            }
+        }
+      else 
         {
           free++;
         }
+      
     }
+			
     std::cerr<<"occupied "<< occupied<< std::endl;
     std::cerr<<"free "<< free<< std::endl;
 
@@ -1348,7 +1578,9 @@ int main (int argc, char** argv)
   node.getParam("triangle_height", length);
   node.getParam("octomap_path", octomap_path);
   
-
+  get_GMMs();
+  get_landmarks();
+  
   // Create a ROS subscriber for map data.
   ros::Subscriber sub_map = node.subscribe ("map", 1, process_map);
 
