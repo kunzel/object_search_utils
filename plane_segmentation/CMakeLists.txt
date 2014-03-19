@@ -6,6 +6,8 @@ project(plane_segmentation)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS pcl_ros roscpp)
 
+find_package(PCL REQUIRED)
+
 ###################################
 ## catkin specific configuration ##
 ###################################

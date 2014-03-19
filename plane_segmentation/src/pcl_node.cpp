@@ -6,8 +6,10 @@
 
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
+
+#include <pcl_conversions/pcl_conversions.h> 
 // PCL specific includes
-#include <pcl/ros/conversions.h>
+//#include <pcl/ros/conversions.h>
 #include <iostream>
 #include <pcl/console/parse.h>
 #include <pcl/filters/extract_indices.h>
