@@ -44,8 +44,6 @@
   <build_depend>nav_goals_generator</build_depend>
   <build_depend>nav_goals_msgs</build_depend>
   <build_depend>octomap_msgs</build_depend>
-  <build_depend>pcl</build_depend>
-  <build_depend>pcl_ros</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>sensor_msgs</build_depend>
   <build_depend>qsr_msgs</build_depend>
@@ -54,8 +52,6 @@
   <run_depend>nav_goals_generator</run_depend>
   <run_depend>nav_goals_msgs</run_depend>
   <run_depend>octomap_msgs</run_depend>
-  <run_depend>pcl</run_depend>
-  <run_depend>pcl_ros</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
   <run_depend>qsr_msgs</run_depend>
