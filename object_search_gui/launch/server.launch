@@ -8,4 +8,6 @@
 		<param name="host_ip" value="$(optenv HOST_IP 127.0.0.1)" />
 	</node>
 
+	<node pkg="mjpeg_server" type="mjpeg_server" name="mjpeg_server" />
+
 </launch>
