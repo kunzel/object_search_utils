@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   geometry_msgs
   genmsg
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -53,11 +54,11 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
+add_service_files(
+   FILES
+   PauseSearch.srv
 #   Service2.srv
-# )
+)
 
 ## Generate actions in the 'action' folder
 add_action_files(
