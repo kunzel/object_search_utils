@@ -1,0 +1,18 @@
+# Define the goal
+string obj_desc 
+uint32 min_objs  # minimum no of objects to be found
+uint32 max_objs  # maximum no of objects to be found
+uint32 max_poses # maximum no of poses to be searched
+uint32 max_time  # maximum search time (in seconds)
+---
+# Define the result
+bool obj_found # object was found
+string[] obj_desc # description of found objects
+sensor_msgs/PointCloud2[] obj_pointcloud # point clouds of found objects
+bool exceeded_max_time # flag to indicate whether action exceeded max time
+bool exceeded_max_poses # flag to indicate whether action exceeded max no of poses
+---
+# Define a feedback message
+sensor_msgs/PointCloud2[] objs
+geometry_msgs/Pose goal_pose
+string state ( = {pose_selection, driving, taking_image, image_analysis, } )
