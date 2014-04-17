@@ -79,8 +79,8 @@ class ObjectSearchProxy(object):
     def image_cb(self,image):
         if self._image_refresh:
             try:
-                #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-                self._image = self.bridge.imgmsg_to_cv2(image)
+                self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+                #self._image = self.bridge.imgmsg_to_cv2(image)
             except CvBridgeError, e:
                 print e
                 
