@@ -65,16 +65,20 @@
         var ros = new ROSLIB.Ros({
             url: 'ws://' + hostname + ':9090'
         });
-		var fibonacciClient = new ROSLIB.ActionClient({
+		var objectSearchClient = new ROSLIB.ActionClient({
 			ros : ros,
 			serverName : '/object_search_proxy',
-			actionName : 'actionlib_tutorials/FibonacciAction'
+			actionName : 'object_search_action/SearchAction'
 		});
 		
 		var search_goal = new ROSLIB.Goal({
-			actionClient : fibonacciClient,
+			actionClient : objectSearchClient,
 			goalMessage : {
-			  order : 27
+//			  obj_desc: 'Mug',
+		      min_objs: 1,
+		      max_objs: 100,
+		      max_poses: 10000,
+		      max_time: 10000,
 			}
 		});
 		
@@ -82,8 +86,8 @@
 		aborted = 0;
 		
 		search_goal.on('feedback', function(feedback) {
-			console.log('Feedback: ' + feedback.sequence);
-			$("#search_progress").html(feedback.sequence);
+			console.log('Feedback: ' + feedback);
+			$("#search_progress").html(feedback.state);
 		});
 		
 		search_goal.on('result', function(result) {
@@ -122,7 +126,8 @@
 			}
 		}		
 		
-		function switch_view(page, transition_delay=0) {
+		function switch_view(page, transition_delay) {
+			transition_delay = typeof transition_delay !== 'undefined' ? transition_delay : 0;
 		    console.log("Switching page");
 			if (transition_delay>0){
 				$("#transition-progress").css("width", "0%");
@@ -194,7 +199,7 @@
 			
 			// Construct the actionlib goal object and start it
 			console.log(search_goal);
-			search_goal.goalMessage.goal.order=7;
+//			search_goal.goalMessage.obj_desc=obj_to_find;
 			console.log(search_goal);
 			console.log("Sending goal...");
 			search_goal.send();
