@@ -58,6 +58,6 @@ class SearchActor(object):
       self._as.set_succeeded(self._result)
       
 if __name__ == '__main__':
-  rospy.init_node('object_search')
+  rospy.init_node('object_search_action')
   SearchActor(rospy.get_name())
   rospy.spin()

@@ -36,7 +36,7 @@ class ObjectSearchProxy(object):
 
         self.bridge = CvBridge()
         
-        self._action_client =  actionlib.SimpleActionClient("object_search",
+        self._action_client =  actionlib.SimpleActionClient("object_search_action",
                                                             SearchAction)
         
         self._action_server = actionlib.SimpleActionServer("object_search_proxy",
