@@ -82,8 +82,8 @@ class ObjectSearchProxy(object):
     def image_cb(self,image):
         if self._image_refresh:
             try:
-                self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-                #self._image = self.bridge.imgmsg_to_cv2(image)
+                #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+                self._image = self.bridge.imgmsg_to_cv2(image)
             except CvBridgeError, e:
                 print e
                 
@@ -221,7 +221,10 @@ class ObjectSearchProxy(object):
         image always.
         """
         cv2.putText(self._image,self._current_mode, (40, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
+
+        cv2.putText(self._image, time.asctime(), (410, 460),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
     
     def _render_image(self):
@@ -231,13 +234,16 @@ class ObjectSearchProxy(object):
 
         self._render_static_image_annotation()
 
-        text_font = cv.InitFont(cv.CV_FONT_HERSHEY_DUPLEX, 0.7, 0.7)
-
         if self._goal_robot_pose is not None:
             # Render the goal pose as the robot is driving to target...
-            pass
+            cv2.putText(self._image,  "Goal Location", (400, 400),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
+
+
 
         if self._point_clouds is not None:
+            cv2.putText(self._image,  "Objects", (400, 400),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
             # Render the bouding boxes of objects...
             # Project each response cluster into image
             box_locations = []
