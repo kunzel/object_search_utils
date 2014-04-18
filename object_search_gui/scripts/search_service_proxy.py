@@ -23,6 +23,7 @@ from image_geometry import PinholeCameraModel
 
 import actionlib
 import actionlib_tutorials.msg
+from object_search_action.msg import *
 
 class ObjectSearchProxy(object):
     """
@@ -35,12 +36,11 @@ class ObjectSearchProxy(object):
 
         self.bridge = CvBridge()
         
-        self._action_client =  actionlib.SimpleActionClient("fibonacci",
-                                                            actionlib_tutorials.msg.FibonacciAction)
+        self._action_client =  actionlib.SimpleActionClient("object_search",
+                                                            SearchAction)
         
         self._action_server = actionlib.SimpleActionServer("object_search_proxy",
-                                                           actionlib_tutorials.msg.FibonacciAction,
-                                                           #self._execute_cb,
+                                                           SearchAction,
                                                            auto_start=False)
         self._action_server.register_goal_callback(self._goal_received_cb)
         self._action_server.register_preempt_callback(self._preempt_cb)
