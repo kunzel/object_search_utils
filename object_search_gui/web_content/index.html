@@ -101,9 +101,7 @@
 				}
 			}
 		});
-		
-		// goal.send();
-	
+					
         // Service for pause/resume of patroller
         var searchPauseService = new ROSLIB.Service({
             ros: ros,
@@ -200,8 +198,7 @@
             $("#search_object_name").html(obj_to_find);
 			
 			// Construct the actionlib goal object and start it
-			console.log(search_goal);
-//			search_goal.goalMessage.obj_desc=obj_to_find;
+			search_goal.goalMessage.goal.obj_desc=obj_to_find;
 			console.log(search_goal);
 			console.log("Sending goal...");
 			search_goal.send();
