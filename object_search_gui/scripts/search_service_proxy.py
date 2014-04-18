@@ -74,6 +74,9 @@ class ObjectSearchProxy(object):
         # Image publisher
         self._image_publisher = rospy.Publisher(self.camera_image_output_topic,
                                                 sensor_msgs.msg.Image)
+        
+        self._current_mode = ""
+
 
 
     def image_cb(self,image):
@@ -171,44 +174,54 @@ class ObjectSearchProxy(object):
         """
 
         # Lock current image...
-        #self._image_refresh = False
-
+        self._image_refresh = False
         
-        #if feedback.state == "driving":
-            ## project the feedback goal_pose into image
-            #self._goal_robot_pose = req.goal_pose
-        #else:
-            #self._goal_robot_pose = None
+        if feedback.state == "driving":
+            # project the feedback goal_pose into image
+            self._goal_robot_pose = feedback.goal_pose
+            self._current_mode = "Moving to next view point."
+        else:
+            self._goal_robot_pose = None
 
-        #if feedback.state == "image_analysis":
-            ## don't overwrite current annotated image...
-            #self._image_refresh = False
-            ## project stuff into image....
-            #self._point_clouds = req.objs
-        #else:
-            #self._point_clouds = None
-            #self._image_refresh = True
+        if feedback.state == "image_analysis":
+            # don't overwrite current annotated image...
+            # project stuff into image....
+            self._point_clouds = feedback.objs
+            self._current_mode = "Analysing scene."
+        else:
+            self._point_clouds = None
 
+        if feedback.state == "taking_image":
+            self._current_mode = "Aquiring depth image."
+
+        if feedback.state == "pose_selection":
+            self._current_mode = "Choosing where to go."
         
         self._action_server.publish_feedback(feedback)
         time.sleep(0)
+        self._image_refresh = True
+        
         
     def _result_received_cb(self, state, result):
         rospy.loginfo("[Client] Result received.")
-        self._image_refresh = False
+        #self._image_refresh = False
 
         print "Done."
-        print result
+        #print result
         if self._success:
             self._action_server.set_succeeded(result)
+            self._image_refresh = False
+            self._current_mode = "Object located."
+            self._image_refresh = True
+
 
     def _render_static_image_annotation(self):
         """
         Render some static annotation on the image - things that go on every
         image always.
         """
-        cv2.putText(self._image,"Object Search", (40, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2, 255, 2)
+        cv2.putText(self._image,self._current_mode, (40, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
     
     def _render_image(self):
