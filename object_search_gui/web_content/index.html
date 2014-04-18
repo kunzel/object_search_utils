@@ -154,14 +154,16 @@
 			
 			if (page=="tracker") {
 				// Subscribe to camera stream
-				$("#image_view").attr("src", "http://localhost:8080/stream?topic=/object_search/image");
+				$("#image_view").attr("src", "http://" + hostname + 
+									":8080/stream?topic=/object_search/image");
 			} else {
 				// Make sure not streaming images
 				$("#image_view").attr("src", "");
 			}
 			if (page=="success") {
 				// Subscribe to camera stream
-				$("#image_view_success").attr("src", "http://localhost:8080/stream?topic=/object_search/image");
+				$("#image_view_success").attr("src", "http://" + hostname +
+									":8080/stream?topic=/object_search/image");
 			} else {
 				// Make sure not streaming images
 				$("#image_view_success").attr("src", "");
@@ -362,7 +364,6 @@
 	<div class="row">
 	  <div clss="col-xs-12">
 		<img src="" alt="Robot View" id="image_view_success"/> 
-<!--		<img src="http://localhost:8080/stream?topic=/usb_cam/image_raw" alt="Robot View" /> -->
 	  </div>
 	</div>
 
