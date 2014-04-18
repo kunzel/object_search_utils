@@ -87,7 +87,7 @@
 		
 		search_goal.on('feedback', function(feedback) {
 			console.log('Feedback: ' + feedback);
-			$("#search_progress").html(feedback.state);
+//			$("#search_progress").html(feedback.state);
 		});
 		
 		search_goal.on('result', function(result) {
@@ -247,7 +247,7 @@
 <div class="container" id="obsearch-initiator"> <!-- form for initiating a object search -->
     <div class="row">
         <div class="col-xs-12">
-            <h3>Testing Control Centre</h3>
+            <h3>Robot Control Centre</h3>
             <hr>
         </div>
     </div>
@@ -314,19 +314,19 @@
 
     <div class="row" id="last_result">
         <div class="col-xs-12" id="last_result_data">
-	Last result.
+			<!--place holder -->
         </div>
     </div>
 
 	<div class="row">
-	  <div clss="col-xs-12">
+	  <div clss="col-xs-12" align="center">
 		<img src="" alt="Robot View" id="image_view"/> 
 	  </div>
 	</div>
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_progress">Search Progress</span>
+            <!--<span id="search_progress">Search Progress</span>-->
         </div>
     </div>
 
@@ -370,14 +370,14 @@
     </div>
 
 	<div class="row">
-	  <div clss="col-xs-12">
+	  <div clss="col-xs-12" align="center">
 		<img src="" alt="Robot View" id="image_view_success"/> 
 	  </div>
 	</div>
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_stats">Statistics?</span>
+            <!--<span id="search_stats">Statistics?</span> -->
         </div>
     </div>
 	
@@ -418,7 +418,7 @@
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_stats">Statistics?</span>
+		<!--<span id="search_stats">Statistics?</span>-->
         </div>
     </div>
 	
