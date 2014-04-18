@@ -91,14 +91,15 @@
 		});
 		
 		search_goal.on('result', function(result) {
-			console.log('Final Result: ' + result.sequence);
-			
+			console.log('Final Result: ' + result);
 			if (aborted != 1) {
 				// Look at the result and decide which screen
-				switch_view("success");
-				// switch_view("fail");
+				if (result.obj_found) {
+					switch_view("success");
+				} else {
+					switch_view("fail");
+				}
 			}
-			
 		});
 		
 		// goal.send();
@@ -149,6 +150,7 @@
 			$("#obsearch-initiator").hide();		
 			$("#obsearch-tracker").hide();
 			$("#obsearch-success").hide();
+			$("#obsearch-fail").hide();
 			
 			$("#obsearch-"+page).show();
 			
