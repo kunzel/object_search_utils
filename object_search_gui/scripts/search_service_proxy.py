@@ -22,7 +22,7 @@ from geometry_msgs.msg import Point32
 from image_geometry import PinholeCameraModel
 
 import actionlib
-import actionlib_tutorials.msg
+
 from object_search_action.msg import *
 
 class ObjectSearchProxy(object):
@@ -145,13 +145,11 @@ class ObjectSearchProxy(object):
                                       self._active_cb,
                                       self._feedback_received_cb)
 
-        #self._action_client.send_goal(goal)
 
     def _active_cb(self):
         rospy.loginfo("[Client] Goal went active.")
         self._image_refresh = True
         self._success = True
-        #self._action_server.accept_new_goal()
         
     def _preempt_cb(self):
         rospy.loginfo("[Server] Goal preempt.")
@@ -245,14 +243,8 @@ class ObjectSearchProxy(object):
         
                 
     def start(self):
-        # Creates a goal to send to the action server.
-        #goal = actionlib_tutorials.msg.FibonacciGoal(order=20)
-        #self._action_client.wait_for_server()
-        #self._action_client.send_goal(goal, self._result_received_cb,
-                                      #None, self._feedback_received_cb)
         self._action_server.start()
-        self._action_server.execute_thread
-        print "Spinning"
+        rospy.loginfo("Object search proxy spinning")
         while not rospy.is_shutdown():
             rospy.spin()
 
