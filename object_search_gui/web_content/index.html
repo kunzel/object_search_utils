@@ -198,6 +198,8 @@
 			var obj_to_find = $("#find_select").val();
 
             $("#search_object_name").html(obj_to_find);
+            $("#search_fail_object_name").html(obj_to_find);
+            $("#search_success_object_name").html(obj_to_find);
 			
 			// Construct the actionlib goal object and start it
 			search_goal.goalMessage.goal.obj_desc=obj_to_find;
@@ -350,7 +352,7 @@
 <div class="container" id="obsearch-success" style="display: none"> 
 	<div class="row">
         <div class="col-xs-12">
-            <h3>"<span id="search_object_name">object_name</span>" Located</h3>
+            <h3>"<span id="search_success_object_name">object_name</span>" Located</h3>
             <hr>
         </div>
     </div>
@@ -403,7 +405,7 @@
 <div class="container" id="obsearch-fail" style="display: none"> 
 	<div class="row">
         <div class="col-xs-12">
-            <h3>"<span id="search_object_name">object_name</span>" could not be located</h3>
+            <h3>Sorry, "<span id="search_fail_object_name">object_name</span>" could not be located</h3>
             <hr>
         </div>
     </div>
@@ -417,11 +419,6 @@
 	<!-- Buttons when search is over. -->
     <div class="row" >
         <div class="col-xs-4">
-            <!--<!-- Cacel button -->
-            <!--<button type="button" onclick="cancel_search()" id="cancel-btn"-->
-                    <!--class="btn-lg btn-default btn-block btn-primary">Cancel Search-->
-            <!--</button>-->
-
         </div>
         <div class="col-xs-4">
             <!-- Restart button -->
@@ -431,10 +428,6 @@
             </button>
         </div>
         <div class="col-xs-4">
-            <!--<!-- Pause button -->
-            <!--<button type="button" onclick="pause_search()" id="pause-btn"-->
-                    <!--class="btn-lg btn-default btn-block btn-primary">Pause Search-->
-            <!--</button>-->
         </div>
     </div>
 </div>
