@@ -19,7 +19,7 @@ class SearchActor(object):
     rospy.loginfo("Search action server up: %s"%self._action_name)
   def execute_cb(self, goal):
     # helper variables
-    r = rospy.Rate(1)
+    r = rospy.Rate(10)
     success = True
     
     # append the seeds for the fibonacci sequence
@@ -27,30 +27,37 @@ class SearchActor(object):
     self._feedback.state="driving"
     
     # publish info to the console for the user
-    rospy.loginfo('%s: Executing, creating fibonacci sequence of order %i with seeds %i, %i' % (self._action_name, 10, 0, 1))
+    rospy.loginfo("Searching for '%s'"%goal.obj_desc)
+
+    states = ["pose_selection", "driving", "taking_image" , "image_analysis"]
     
-    # start executing the action
-    for i in xrange(1, 10):
-      # check that preempt has not been requested by the client
-      if self._as.is_preempt_requested():
-        rospy.loginfo('%s: Preempted' % self._action_name)
-        self._as.set_preempted()
-        success = False
-        break
-      self._feedback.state+="."
-      # publish the feedback
-      self._as.publish_feedback(self._feedback)
-      # this step is not necessary, the sequence is computed at 1 Hz for demonstration purposes
-      r.sleep()
-      
+    for i in states:
+      self._feedback.state = i
+      self._as.publish_feedback(self._feedback)    
+
+      rospy.loginfo(self._feedback.state)
+      j = 0
+      while j < 10 * 4:
+        j += 1
+        r.sleep()
+        if self._as.is_preempt_requested():
+          rospy.loginfo('%s: Preempted' % self._action_name)
+          self._as.set_preempted()
+          success = False
+          break
+      else:
+        continue
+      break
+
+
     if success:
-      self._result.obj_found=True
+      self._result.obj_found= (goal.obj_desc == "Mug") #True
       self._result.obj_desc=["Mug"]
       rospy.loginfo('%s: Succeeded' % self._action_name)
       self._result.obj_pointcloud=[PointCloud2()]
       self._as.set_succeeded(self._result)
       
 if __name__ == '__main__':
-  rospy.init_node('object_search_proxy')
+  rospy.init_node('object_search_action')
   SearchActor(rospy.get_name())
   rospy.spin()
