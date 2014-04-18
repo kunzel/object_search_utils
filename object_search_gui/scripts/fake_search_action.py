@@ -27,7 +27,8 @@ class SearchActor(object):
     self._feedback.state="driving"
     
     # publish info to the console for the user
-    rospy.loginfo('%s: Executing, creating fibonacci sequence of order %i with seeds %i, %i' % (self._action_name, 10, 0, 1))
+    rospy.loginfo("Executing, creating fibonacci sequence ")
+    rospy.loginfo("Searching for '%s'"%goal.obj_desc)
     
     # start executing the action
     for i in xrange(1, 10):
@@ -44,7 +45,7 @@ class SearchActor(object):
       r.sleep()
       
     if success:
-      self._result.obj_found=True
+      self._result.obj_found= (goal.obj_desc == "Mug") #True
       self._result.obj_desc=["Mug"]
       rospy.loginfo('%s: Succeeded' % self._action_name)
       self._result.obj_pointcloud=[PointCloud2()]
