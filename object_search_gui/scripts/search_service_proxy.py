@@ -48,8 +48,8 @@ class ObjectSearchProxy(object):
         self._success = True
         self._tf_listener = tf.TransformListener(190)
 
-        self.camera_image_topic = "/camera/rgb/image_color"
-        self.camera_image_info_topic = "/camera/rgb/camera_info"
+        self.camera_image_topic = "/head_xtion/rgb/image_color"
+        self.camera_image_info_topic = "/head_xtion/rgb/camera_info"
         self.camera_image_output_topic = "/object_search/image"
         
         self._goal_robot_pose = None
