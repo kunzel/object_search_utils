@@ -9,6 +9,7 @@ import rospy
 from sensor_msgs.msg import *
 import tf
 import time
+import math
 
 # Import opencv
 import cv
@@ -18,7 +19,7 @@ from sensor_msgs.msg import PointCloud, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from cv_bridge import CvBridge, CvBridgeError  # to convert sensor_msgs to OpenCV image
 from roslib import message
-from geometry_msgs.msg import Point32
+from geometry_msgs.msg import Point32, PoseStamped
 from image_geometry import PinholeCameraModel
 
 import actionlib
@@ -56,6 +57,7 @@ class ObjectSearchProxy(object):
         self._point_clouds = None
             
         self._image = None
+        self._image_time = rospy.Time.now()
         self._image_refresh = True # Should new images be kept?
         r = rospy.Rate(1)
         sub = rospy.Subscriber(self.camera_image_topic, Image, self.image_cb)
@@ -77,6 +79,10 @@ class ObjectSearchProxy(object):
         
         self._current_mode = ""
 
+        rospy.Subscriber('/move_base_simple/goal', PoseStamped, self.goal_pose_cb)
+
+    def goal_pose_cb(self,goal_pose):
+        self._goal_robot_pose=goal_pose
 
 
     def image_cb(self,image):
@@ -84,6 +90,7 @@ class ObjectSearchProxy(object):
             try:
                 #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
                 self._image = self.bridge.imgmsg_to_cv2(image)
+                self._image_time = image.header.stamp
             except CvBridgeError, e:
                 print e
                 
@@ -223,7 +230,7 @@ class ObjectSearchProxy(object):
         cv2.putText(self._image,self._current_mode, (40, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
-        cv2.putText(self._image, time.asctime(), (410, 460),
+        cv2.putText(self._image, time.asctime(), (400, 460),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
     
@@ -236,8 +243,28 @@ class ObjectSearchProxy(object):
 
         if self._goal_robot_pose is not None:
             # Render the goal pose as the robot is driving to target...
-            cv2.putText(self._image,  "Goal Location", (400, 400),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
+            self._goal_robot_pose.header.stamp = self._image_time
+            self._tf_listener.waitForTransform('/map',
+                                               self._image_info.tf_frame, 
+                                               self._image_time,
+                                               rospy.Duration(4))
+
+            self._goal_robot_pose.pose.position.z=1.5 # force goal point to be 1.5m
+            pose = self._tf_listener.transformPose(self._image_info.tf_frame,
+                                            self._goal_robot_pose)
+            u, v = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                      pose.pose.position.y,
+                                                      pose.pose.position.z))
+            self._goal_robot_pose.pose.position.z=1.45 # force goal point to be 1.5m
+            pose = self._tf_listener.transformPose(self._image_info.tf_frame,
+                                            self._goal_robot_pose)
+            u2, v2 = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                      pose.pose.position.y,
+                                                      pose.pose.position.z))
+            radius = int(math.sqrt((u2-u)**2 + (v2-v)**2))
+            cv2.putText(self._image,  "Goal Location", (int(u+radius+1), int(v+radius+1)),
+                    cv2.FONT_HERSHEY_SIMPLEX, radius/10.0, 255, radius/200 * 3)
+            cv2.circle(self._image, (int(u),int(v)), radius, (0,0,255,127),-1)
 
 
 
