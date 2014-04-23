@@ -19,7 +19,7 @@ from sensor_msgs.msg import PointCloud, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from cv_bridge import CvBridge, CvBridgeError  # to convert sensor_msgs to OpenCV image
 from roslib import message
-from geometry_msgs.msg import Point32, PoseStamped
+from geometry_msgs.msg import Point32, PoseStamped, Pose
 from image_geometry import PinholeCameraModel
 
 import actionlib
@@ -185,7 +185,9 @@ class ObjectSearchProxy(object):
         
         if feedback.state == "driving":
             # project the feedback goal_pose into image
-            self._goal_robot_pose = feedback.goal_pose
+            p = PoseStamped()
+            p.pose = feedback.goal_pose
+            self._goal_robot_pose = p  # feedback.goal_pose
             self._current_mode = "Moving to next view point."
         else:
             self._goal_robot_pose = None
