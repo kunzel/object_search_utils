@@ -48,7 +48,7 @@
 		left: 0px;
 		background-color: rgb(0, 0, 0);
 		background-repeat:repeat;
-		opacity: 0.4;
+		opacity: 0.7;
 		-moz-opacity: 0.70;
 		filter: alpha(opacity=70);
 		z-index: 20;
@@ -65,16 +65,20 @@
         var ros = new ROSLIB.Ros({
             url: 'ws://' + hostname + ':9090'
         });
-		var fibonacciClient = new ROSLIB.ActionClient({
+		var objectSearchClient = new ROSLIB.ActionClient({
 			ros : ros,
 			serverName : '/object_search_proxy',
-			actionName : 'actionlib_tutorials/FibonacciAction'
+			actionName : 'object_search_action/SearchAction'
 		});
 		
 		var search_goal = new ROSLIB.Goal({
-			actionClient : fibonacciClient,
+			actionClient : objectSearchClient,
 			goalMessage : {
-			  order : 27
+//			  obj_desc: 'Mug',
+		      min_objs: 1,
+		      max_objs: 100,
+		      max_poses: 10000,
+		      max_time: 10000,
 			}
 		});
 		
@@ -82,23 +86,22 @@
 		aborted = 0;
 		
 		search_goal.on('feedback', function(feedback) {
-			console.log('Feedback: ' + feedback.sequence);
-			$("#search_progress").html(feedback.sequence);
+			console.log('Feedback: ' + feedback);
+//			$("#search_progress").html(feedback.state);
 		});
 		
 		search_goal.on('result', function(result) {
-			console.log('Final Result: ' + result.sequence);
-			
+			console.log('Final Result: ' + result);
 			if (aborted != 1) {
 				// Look at the result and decide which screen
-				switch_view("success");
-				// switch_view("fail");
+				if (result.obj_found) {
+					switch_view("success");
+				} else {
+					switch_view("fail");
+				}
 			}
-			
 		});
-		
-		// goal.send();
-	
+					
         // Service for pause/resume of patroller
         var searchPauseService = new ROSLIB.Service({
             ros: ros,
@@ -122,7 +125,8 @@
 			}
 		}		
 		
-		function switch_view(page, transition_delay=0) {
+		function switch_view(page, transition_delay) {
+			transition_delay = typeof transition_delay !== 'undefined' ? transition_delay : 0;
 		    console.log("Switching page");
 			if (transition_delay>0){
 				$("#transition-progress").css("width", "0%");
@@ -144,19 +148,22 @@
 			$("#obsearch-initiator").hide();		
 			$("#obsearch-tracker").hide();
 			$("#obsearch-success").hide();
+			$("#obsearch-fail").hide();
 			
 			$("#obsearch-"+page).show();
 			
 			if (page=="tracker") {
 				// Subscribe to camera stream
-				$("#image_view").attr("src", "http://localhost:8080/stream?topic=/object_search/image");
+				$("#image_view").attr("src", "http://" + hostname + 
+									":8080/stream?topic=/object_search/image");
 			} else {
 				// Make sure not streaming images
 				$("#image_view").attr("src", "");
 			}
 			if (page=="success") {
 				// Subscribe to camera stream
-				$("#image_view_success").attr("src", "http://localhost:8080/stream?topic=/object_search/image");
+				$("#image_view_success").attr("src", "http://" + hostname +
+									":8080/stream?topic=/object_search/image");
 			} else {
 				// Make sure not streaming images
 				$("#image_view_success").attr("src", "");
@@ -191,10 +198,11 @@
 			var obj_to_find = $("#find_select").val();
 
             $("#search_object_name").html(obj_to_find);
+            $("#search_fail_object_name").html(obj_to_find);
+            $("#search_success_object_name").html(obj_to_find);
 			
 			// Construct the actionlib goal object and start it
-			console.log(search_goal);
-			search_goal.goalMessage.goal.order=7;
+			search_goal.goalMessage.goal.obj_desc=obj_to_find;
 			console.log(search_goal);
 			console.log("Sending goal...");
 			search_goal.send();
@@ -219,6 +227,12 @@
 <!-- SCREEN Transition -->
 <div class="darkenBackground" id="transition-screen">
 	<div class="very_centre">
+		<div class="row">
+			<div class="col-xs-12">
+				<h6>Please wait...</h6>
+			</div>
+		</div>
+
 		<div class="progress progress-striped active" style="z-index: 40; opacity: 1.0; -moz-opacity: 1.0;
 		filter: alpha(opacity=100);">
 		  <div class="progress-bar progress-bar-info" role="progressbar" id="transition-progress" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" 
@@ -233,7 +247,7 @@
 <div class="container" id="obsearch-initiator"> <!-- form for initiating a object search -->
     <div class="row">
         <div class="col-xs-12">
-            <h3>Testing Control Centre</h3>
+            <h3>Robot Control Centre</h3>
             <hr>
         </div>
     </div>
@@ -300,19 +314,19 @@
 
     <div class="row" id="last_result">
         <div class="col-xs-12" id="last_result_data">
-	Last result.
+			<!--place holder -->
         </div>
     </div>
 
 	<div class="row">
-	  <div clss="col-xs-12">
+	  <div clss="col-xs-12" align="center">
 		<img src="" alt="Robot View" id="image_view"/> 
 	  </div>
 	</div>
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_progress">Search Progress</span>
+            <!--<span id="search_progress">Search Progress</span>-->
         </div>
     </div>
 
@@ -344,7 +358,7 @@
 <div class="container" id="obsearch-success" style="display: none"> 
 	<div class="row">
         <div class="col-xs-12">
-            <h3>"<span id="search_object_name">object_name</span>" Located</h3>
+            <h3>"<span id="search_success_object_name">object_name</span>" Located</h3>
             <hr>
         </div>
     </div>
@@ -356,15 +370,14 @@
     </div>
 
 	<div class="row">
-	  <div clss="col-xs-12">
+	  <div clss="col-xs-12" align="center">
 		<img src="" alt="Robot View" id="image_view_success"/> 
-<!--		<img src="http://localhost:8080/stream?topic=/usb_cam/image_raw" alt="Robot View" /> -->
 	  </div>
 	</div>
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_stats">Statistics?</span>
+            <!--<span id="search_stats">Statistics?</span> -->
         </div>
     </div>
 	
@@ -398,25 +411,20 @@
 <div class="container" id="obsearch-fail" style="display: none"> 
 	<div class="row">
         <div class="col-xs-12">
-            <h3>"<span id="search_object_name">object_name</span>" could not be located</h3>
+            <h3>Sorry, "<span id="search_fail_object_name">object_name</span>" could not be located</h3>
             <hr>
         </div>
     </div>
 
     <div class="row">
         <div class="col-xs-12">
-            <span id="search_stats">Statistics?</span>
+		<!--<span id="search_stats">Statistics?</span>-->
         </div>
     </div>
 	
 	<!-- Buttons when search is over. -->
     <div class="row" >
         <div class="col-xs-4">
-            <!--<!-- Cacel button -->
-            <!--<button type="button" onclick="cancel_search()" id="cancel-btn"-->
-                    <!--class="btn-lg btn-default btn-block btn-primary">Cancel Search-->
-            <!--</button>-->
-
         </div>
         <div class="col-xs-4">
             <!-- Restart button -->
@@ -426,10 +434,6 @@
             </button>
         </div>
         <div class="col-xs-4">
-            <!--<!-- Pause button -->
-            <!--<button type="button" onclick="pause_search()" id="pause-btn"-->
-                    <!--class="btn-lg btn-default btn-block btn-primary">Pause Search-->
-            <!--</button>-->
         </div>
     </div>
 </div>

@@ -22,7 +22,8 @@ from geometry_msgs.msg import Point32
 from image_geometry import PinholeCameraModel
 
 import actionlib
-import actionlib_tutorials.msg
+
+from object_search_action.msg import *
 
 class ObjectSearchProxy(object):
     """
@@ -35,12 +36,11 @@ class ObjectSearchProxy(object):
 
         self.bridge = CvBridge()
         
-        self._action_client =  actionlib.SimpleActionClient("fibonacci",
-                                                            actionlib_tutorials.msg.FibonacciAction)
+        self._action_client =  actionlib.SimpleActionClient("object_search_action",
+                                                            SearchAction)
         
         self._action_server = actionlib.SimpleActionServer("object_search_proxy",
-                                                           actionlib_tutorials.msg.FibonacciAction,
-                                                           #self._execute_cb,
+                                                           SearchAction,
                                                            auto_start=False)
         self._action_server.register_goal_callback(self._goal_received_cb)
         self._action_server.register_preempt_callback(self._preempt_cb)
@@ -74,13 +74,16 @@ class ObjectSearchProxy(object):
         # Image publisher
         self._image_publisher = rospy.Publisher(self.camera_image_output_topic,
                                                 sensor_msgs.msg.Image)
+        
+        self._current_mode = ""
+
 
 
     def image_cb(self,image):
         if self._image_refresh:
             try:
-                self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-                #self._image = self.bridge.imgmsg_to_cv2(image)
+                #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+                self._image = self.bridge.imgmsg_to_cv2(image)
             except CvBridgeError, e:
                 print e
                 
@@ -145,13 +148,11 @@ class ObjectSearchProxy(object):
                                       self._active_cb,
                                       self._feedback_received_cb)
 
-        #self._action_client.send_goal(goal)
 
     def _active_cb(self):
         rospy.loginfo("[Client] Goal went active.")
         self._image_refresh = True
         self._success = True
-        #self._action_server.accept_new_goal()
         
     def _preempt_cb(self):
         rospy.loginfo("[Server] Goal preempt.")
@@ -173,44 +174,57 @@ class ObjectSearchProxy(object):
         """
 
         # Lock current image...
-        #self._image_refresh = False
-
+        self._image_refresh = False
         
-        #if feedback.state == "driving":
-            ## project the feedback goal_pose into image
-            #self._goal_robot_pose = req.goal_pose
-        #else:
-            #self._goal_robot_pose = None
+        if feedback.state == "driving":
+            # project the feedback goal_pose into image
+            self._goal_robot_pose = feedback.goal_pose
+            self._current_mode = "Moving to next view point."
+        else:
+            self._goal_robot_pose = None
 
-        #if feedback.state == "image_analysis":
-            ## don't overwrite current annotated image...
-            #self._image_refresh = False
-            ## project stuff into image....
-            #self._point_clouds = req.objs
-        #else:
-            #self._point_clouds = None
-            #self._image_refresh = True
+        if feedback.state == "image_analysis":
+            # don't overwrite current annotated image...
+            # project stuff into image....
+            self._point_clouds = feedback.objs
+            self._current_mode = "Analysing scene."
+        else:
+            self._point_clouds = None
 
+        if feedback.state == "taking_image":
+            self._current_mode = "Aquiring depth image."
+
+        if feedback.state == "pose_selection":
+            self._current_mode = "Choosing where to go."
         
         self._action_server.publish_feedback(feedback)
         time.sleep(0)
+        self._image_refresh = True
+        
         
     def _result_received_cb(self, state, result):
         rospy.loginfo("[Client] Result received.")
-        self._image_refresh = False
+        #self._image_refresh = False
 
         print "Done."
-        print result
+        #print result
         if self._success:
             self._action_server.set_succeeded(result)
+            self._image_refresh = False
+            self._current_mode = "Object located."
+            self._image_refresh = True
+
 
     def _render_static_image_annotation(self):
         """
         Render some static annotation on the image - things that go on every
         image always.
         """
-        cv2.putText(self._image,"Object Search", (40, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 2, 255, 2)
+        cv2.putText(self._image,self._current_mode, (40, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
+
+        cv2.putText(self._image, time.asctime(), (410, 460),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
     
     def _render_image(self):
@@ -220,13 +234,16 @@ class ObjectSearchProxy(object):
 
         self._render_static_image_annotation()
 
-        text_font = cv.InitFont(cv.CV_FONT_HERSHEY_DUPLEX, 0.7, 0.7)
-
         if self._goal_robot_pose is not None:
             # Render the goal pose as the robot is driving to target...
-            pass
+            cv2.putText(self._image,  "Goal Location", (400, 400),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
+
+
 
         if self._point_clouds is not None:
+            cv2.putText(self._image,  "Objects", (400, 400),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
             # Render the bouding boxes of objects...
             # Project each response cluster into image
             box_locations = []
@@ -245,14 +262,8 @@ class ObjectSearchProxy(object):
         
                 
     def start(self):
-        # Creates a goal to send to the action server.
-        #goal = actionlib_tutorials.msg.FibonacciGoal(order=20)
-        #self._action_client.wait_for_server()
-        #self._action_client.send_goal(goal, self._result_received_cb,
-                                      #None, self._feedback_received_cb)
         self._action_server.start()
-        self._action_server.execute_thread
-        print "Spinning"
+        rospy.loginfo("Object search proxy spinning")
         while not rospy.is_shutdown():
             rospy.spin()
 
