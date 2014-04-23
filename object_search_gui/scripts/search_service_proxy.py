@@ -187,6 +187,7 @@ class ObjectSearchProxy(object):
             # project the feedback goal_pose into image
             p = PoseStamped()
             p.pose = feedback.goal_pose
+            p.header.frame_id="/map"
             self._goal_robot_pose = p  # feedback.goal_pose
             self._current_mode = "Moving to next view point."
         else:
@@ -229,6 +230,11 @@ class ObjectSearchProxy(object):
         Render some static annotation on the image - things that go on every
         image always.
         """
+        cv2.rectangle(self._image,
+                      (0,0), (640, 40),
+                      (0, 0, 0),
+                      -1)
+                
         cv2.putText(self._image,self._current_mode, (40, 40),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
