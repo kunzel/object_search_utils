@@ -31,6 +31,7 @@ using namespace std;
 using namespace octomap;
 using namespace qsr_msgs;
 
+#define ANGLE_MAX_DIFF (M_PI / 8)  
 #define QSR_WEIGHT 0
 
 // Robot lab
@@ -171,6 +172,61 @@ int get_GMMs()
   return 0;
 }
 
+OcTree* extract_supporting_planes(OcTree* tree)
+{
+  OcTree* sp_tree = new OcTree(tree->getResolution());  
+
+  int free = 0;
+  int occupied = 0;
+  int supported = 0;
+  
+  ROS_INFO("Extracting supporting planes from octomap");
+  
+  for(OcTree::leaf_iterator it = tree->begin_leafs(),
+        end=tree->end_leafs(); it!= end; ++it)
+    {
+      if (tree->isNodeOccupied(*it))
+        {
+          occupied++;
+          std::vector<point3d> normals;
+          
+          point3d p3d = it.getCoordinate();
+
+          bool got_normals = tree->getNormals(p3d ,normals, true); 
+          std::vector<point3d>::iterator normal_iter;
+          
+          point3d avg_normal (0.0, 0.0, 0.0);
+          for(std::vector<point3d>::iterator normal_iter = normals.begin(), 
+                end = normals.end(); normal_iter!= end; ++normal_iter)
+            {
+              avg_normal+= (*normal_iter);
+            }
+          if (normals.size() > 0) 
+            {
+              supported++;
+              // cout << "#Normals: " << normals.size() << endl;
+
+              avg_normal/= normals.size();       
+              
+              point3d z_axis ( 0.0, 0.0, 1.0);
+              double angle = avg_normal.angleTo(z_axis);
+
+              point3d coord = it.getCoordinate();
+
+              if ( angle < ANGLE_MAX_DIFF)
+                {
+                  sp_tree->updateNode(coord,true);
+                } 
+            }  
+        } 
+      else 
+        {
+          free++;
+        }
+    }
+  ROS_INFO("Extracted map size: %i (%i free, and %i occupied leaf nodes were discarded)", supported, free, occupied - supported);
+  return sp_tree;
+}
 
 OcTree* retrieve_octree()
 {
@@ -189,10 +245,12 @@ OcTree* retrieve_octree()
 
   if (octree){
     ROS_INFO("Map received (%zu nodes, %f m res)", octree->size(), octree->getResolution());
-    return octree;
+    return extract_supporting_planes(octree);
   }
   return NULL;
 }
+
+
 
 
 double normal_dist_2d(double x, double y, double mean1, double var1, double mean2, double var2)
@@ -529,7 +587,7 @@ void findProbabilityOfCones3D(Frustum frustum[], int num_poses3D)
               if (checkInsideCone3D(x, y, z, frustum[k]))
                 {
                   
-                  frustum[k].probability += 0.1;
+                  frustum[k].probability += 1;
 
                   for (int l = 0; l < qsr_landmark.size(); l++)
                     {
@@ -1455,8 +1513,8 @@ bool serviceBestViews(view_evaluation::BestViews::Request  &req,
   }
 
   float weight[num_bestPoses2D];
-  std::vector<float> weight_vector(num_bestPoses2D);
-  std::vector<float> bestPanTiltWeights(num_poses3D);
+  std::vector<float> weight_vector;
+  std::vector<float> bestPanTiltWeights;
   int bestPosesIndex3D[num_bestPoses2D];
   int bestPanTiltIndex[num_poses3D];
 
