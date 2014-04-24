@@ -9,6 +9,8 @@ import rospy
 from sensor_msgs.msg import *
 import tf
 import time
+import math
+import threading
 
 # Import opencv
 import cv
@@ -18,7 +20,7 @@ from sensor_msgs.msg import PointCloud, PointCloud2
 import sensor_msgs.point_cloud2 as pc2
 from cv_bridge import CvBridge, CvBridgeError  # to convert sensor_msgs to OpenCV image
 from roslib import message
-from geometry_msgs.msg import Point32
+from geometry_msgs.msg import Point32, PoseStamped, Pose
 from image_geometry import PinholeCameraModel
 
 import actionlib
@@ -48,17 +50,19 @@ class ObjectSearchProxy(object):
         self._success = True
         self._tf_listener = tf.TransformListener(190)
 
-        self.camera_image_topic = "/camera/rgb/image_color"
-        self.camera_image_info_topic = "/camera/rgb/camera_info"
+        self.camera_image_topic = "/head_xtion/rgb/image_color"
+        self.camera_image_info_topic = "/head_xtion/rgb/camera_info"
         self.camera_image_output_topic = "/object_search/image"
         
         self._goal_robot_pose = None
         self._point_clouds = None
             
         self._image = None
+        self._image_lock = threading.Lock()
+        self._image_time = rospy.Time.now()
         self._image_refresh = True # Should new images be kept?
         r = rospy.Rate(1)
-        sub = rospy.Subscriber(self.camera_image_topic, Image, self.image_cb)
+        self._image_sub = rospy.Subscriber(self.camera_image_topic, Image, self.image_cb, queue_size=1)
         #while self._image is None:
             #rospy.loginfo("Waiting for image subscription...")
             #r.sleep()
@@ -77,19 +81,25 @@ class ObjectSearchProxy(object):
         
         self._current_mode = ""
 
+        # rospy.Subscriber('/move_base/current_goal', PoseStamped, self.goal_pose_cb)
+
+    def goal_pose_cb(self,goal_pose):
+        self._goal_robot_pose=goal_pose
 
 
     def image_cb(self,image):
-        if self._image_refresh:
-            try:
-                #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
-                self._image = self.bridge.imgmsg_to_cv2(image)
-            except CvBridgeError, e:
-                print e
-                
-            self._render_image()
-        self._image_publisher.publish(self.bridge.cv2_to_imgmsg(self._image,
-                                                                encoding="bgr8"))
+        with self._image_lock:
+            if self._image_refresh:
+                try:
+                    #self._image = self.bridge.imgmsg_to_cv2(image, "bgr8")
+                    self._image = self.bridge.imgmsg_to_cv2(image)
+                    self._image_time = image.header.stamp
+                except CvBridgeError, e:
+                    print e
+
+                self._render_image()
+            self._image_publisher.publish(self.bridge.cv2_to_imgmsg(self._image,
+                                                                    encoding="bgr8"))
         
             
     def image_info_cb(self, image_info):
@@ -110,7 +120,8 @@ class ObjectSearchProxy(object):
         pc1.header = cloud.header
         # hack the time! dont move the robot :-0
         pc1.header.stamp = rospy.Time.now()
-
+        
+        
         pc1.points = [Point32(*p) for p in pc2.read_points(cloud)]
 
         self._tf_listener.waitForTransform(pc1.header.frame_id,
@@ -172,34 +183,44 @@ class ObjectSearchProxy(object):
         string state ( = {pose_selection, driving, taking_image, image_analysis, } )
         need artificial pause after analyse...
         """
+        with self._image_lock:
+            # Lock current image...
+            self._image_refresh = False
 
-        # Lock current image...
-        self._image_refresh = False
-        
-        if feedback.state == "driving":
-            # project the feedback goal_pose into image
-            self._goal_robot_pose = feedback.goal_pose
-            self._current_mode = "Moving to next view point."
-        else:
-            self._goal_robot_pose = None
+            if feedback.state == "driving":
+                # project the feedback goal_pose into image
+                p = PoseStamped()
+                p.pose = feedback.goal_pose
+                p.header.frame_id="/map"
+                self._goal_robot_pose = p  # feedback.goal_pose
+                self._current_mode = "Moving to next view point."
+            else:
+                self._goal_robot_pose = None
 
-        if feedback.state == "image_analysis":
-            # don't overwrite current annotated image...
-            # project stuff into image....
-            self._point_clouds = feedback.objs
-            self._current_mode = "Analysing scene."
-        else:
-            self._point_clouds = None
+            if feedback.state == "image_analysis":
+                # don't overwrite current annotated image...
+                # project stuff into image....
+                self._point_clouds = feedback.objs
+                self._labels = feedback.labels
+                self._current_mode = "Analysing scene."
+            else:
+                self._point_clouds = None
 
-        if feedback.state == "taking_image":
-            self._current_mode = "Aquiring depth image."
+            if feedback.state == "taking_image":
+                self._current_mode = "Aquiring depth image."
+#                if self._image_sub is not None:
+#                    self._image_sub.unregister()
+#                self._image_sub=None
+#            else:
+#                if self._image_sub is None:
+#                    self._image_sub = rospy.Subscriber(self.camera_image_topic, Image, self.image_cb)
 
-        if feedback.state == "pose_selection":
-            self._current_mode = "Choosing where to go."
-        
-        self._action_server.publish_feedback(feedback)
-        time.sleep(0)
-        self._image_refresh = True
+            if feedback.state == "pose_selection":
+                self._current_mode = "Choosing where to go."
+
+            self._action_server.publish_feedback(feedback)
+            time.sleep(0)
+            self._image_refresh = True
         
         
     def _result_received_cb(self, state, result):
@@ -220,10 +241,15 @@ class ObjectSearchProxy(object):
         Render some static annotation on the image - things that go on every
         image always.
         """
-        cv2.putText(self._image,self._current_mode, (40, 40),
+        cv2.rectangle(self._image,
+                      (0,0), (640, 40),
+                      (0, 0, 0),
+                      -1)
+                
+        cv2.putText(self._image,self._current_mode, (40, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
-        cv2.putText(self._image, time.asctime(), (410, 460),
+        cv2.putText(self._image, time.asctime(), (400, 460),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
     
@@ -236,29 +262,58 @@ class ObjectSearchProxy(object):
 
         if self._goal_robot_pose is not None:
             # Render the goal pose as the robot is driving to target...
-            cv2.putText(self._image,  "Goal Location", (400, 400),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
+            self._goal_robot_pose.header.stamp =  self._image_time # AHHHHH THIS IS NOT 
+            self._tf_listener.waitForTransform('/map',
+                                               self._image_info.tf_frame, 
+                                               self._image_time,
+                                               rospy.Duration(4))
+
+            self._goal_robot_pose.pose.position.z = 1.5 # force goal point to be 1.5m
+            pose = self._tf_listener.transformPose(self._image_info.tf_frame,
+                                            self._goal_robot_pose)
+            u, v = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                      pose.pose.position.y,
+                                                      pose.pose.position.z))
+            self._goal_robot_pose.pose.position.z=1.45 # force goal point to be 1.5m
+            pose = self._tf_listener.transformPose(self._image_info.tf_frame,
+                                            self._goal_robot_pose)
+            u2, v2 = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                      pose.pose.position.y,
+                                                      pose.pose.position.z))
+            radius = int(math.sqrt((u2-u)**2 + (v2-v)**2))
+            if radius < 100:
+                cv2.putText(self._image,  "Goal Location", (int(u+radius+1), int(v+radius+1)),
+                            cv2.FONT_HERSHEY_SIMPLEX, radius/10.0, 255, radius/200 * 3)
+                cv2.circle(self._image, (int(u),int(v)), radius, (0,0,255,127),-1)
 
 
 
         if self._point_clouds is not None:
-            cv2.putText(self._image,  "Objects", (400, 400),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
             # Render the bouding boxes of objects...
             # Project each response cluster into image
             box_locations = []
-            for cloud in self._point_clouds:
+            print
+            for i, (cloud, label) in enumerate(zip(self._point_clouds, self._labels)):
+                print "Object ",i,"/",len(self._point_clouds)
                 location = self._project_pointcloud(cloud)
+                print location
                 box_locations.append(location)
-                cv.Rectangle(cv.fromarray(self._image),
-                             location[0], location[1],
-                             (255, 255, 0, ),
-                             4)
-                cv.PutText(cv.fromarray(self._image,
-                                        "Analysing object",
-                                        (location[0][0], location[0][1]-10),
-                                        text_font,
-                                        (255, 0, 255, 255)))
+                cv2.rectangle(self._image,
+                              location[0],location[1],
+                              (255, 0, 0),
+                              3)
+                cv2.putText(self._image,  label,
+                            (location[0][0], location[0][1]-10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2)
+
+#                cv.Rectangle(cv.fromarray(self._image),
+#                             location[0], location[1],
+#                             (255, 255, 0, ),
+#                             4)
+#                cv2.putText(self._image,
+#                            "Analysing object",
+#                            (location[0][0], location[0][1]-10),
+#                            cv2.FONT_HERSHEY_SIMPLEX, 0.5,255,2)
         
                 
     def start(self):

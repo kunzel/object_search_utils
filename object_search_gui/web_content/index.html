@@ -195,14 +195,14 @@
         function start_search() {
 			console.log("Starting search");
 			aborted	= 0;	
-			var obj_to_find = $("#find_select").val();
+			var obj_to_find = $("#find_select").val().trim();
 
             $("#search_object_name").html(obj_to_find);
             $("#search_fail_object_name").html(obj_to_find);
             $("#search_success_object_name").html(obj_to_find);
 			
 			// Construct the actionlib goal object and start it
-			search_goal.goalMessage.goal.obj_desc=obj_to_find;
+			search_goal.goalMessage.goal.obj_desc='{\"type\": \"' + obj_to_find.toLowerCase() + '\"}';
 			console.log(search_goal);
 			console.log("Sending goal...");
 			search_goal.send();
@@ -247,7 +247,7 @@
 <div class="container" id="obsearch-initiator"> <!-- form for initiating a object search -->
     <div class="row">
         <div class="col-xs-12">
-            <h3>Robot Control Centre</h3>
+            <h3>Robot Control Centre Better Work Now Again</h3>
             <hr>
         </div>
     </div>
@@ -275,10 +275,10 @@
         <div class="col-xs-6">
             <select class="form-control" id="find_select">
                 <option>Mug</option>
-                <option>Mobile Phone</option>
-                <option>Keys</option>
-                <option>Remote Control</option>
-                <option>My Mind</option>
+                <option>Banana</option>
+                <option>Bottle</option>
+                <option>Laptop</option>
+                <option>Keyboard</option>
             </select>
         </div>
     </div>
