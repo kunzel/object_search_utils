@@ -14,5 +14,6 @@ bool exceeded_max_poses # flag to indicate whether action exceeded max no of pos
 ---
 # Define a feedback message
 sensor_msgs/PointCloud2[] objs
+string[] labels
 geometry_msgs/Pose goal_pose
 string state # {pose_selection, driving, taking_image, image_analysis } 
