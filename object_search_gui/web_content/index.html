@@ -202,7 +202,7 @@
             $("#search_success_object_name").html(obj_to_find);
 			
 			// Construct the actionlib goal object and start it
-			search_goal.goalMessage.goal.obj_desc='{\'type\': \''+ obj_to_find + '\'}';
+			search_goal.goalMessage.goal.obj_desc='{\'type\': \''+ obj_to_find.toLowerCase() + '\'}';
 			console.log(search_goal);
 			console.log("Sending goal...");
 			search_goal.send();
@@ -275,10 +275,10 @@
         <div class="col-xs-6">
             <select class="form-control" id="find_select">
                 <option>Mug</option>
-                <option>Mobile Phone</option>
-                <option>Keys</option>
-                <option>Remote Control</option>
-                <option>My Mind</option>
+                <option>Banana</option>
+                <option>Bottle</option>
+                <option>Laptop</option>
+                <option>Keyboard</option>
             </select>
         </div>
     </div>
