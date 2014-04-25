@@ -152,6 +152,11 @@ class ObjectSearchProxy(object):
         Pass on the goal to the underlying action server
         """
         rospy.loginfo("[Server] Goal received, passing it on.")
+        self._image_refresh=True
+        with self._image_lock:
+            self._current_mode = ""
+            self._point_clouds = None
+            self._goal_robot_pose = None
         self._action_client.wait_for_server()
         self._success = True
         goal = self._action_server.accept_new_goal()
@@ -233,7 +238,6 @@ class ObjectSearchProxy(object):
             self._action_server.set_succeeded(result)
             self._image_refresh = False
             self._current_mode = "Object located."
-            self._image_refresh = True
 
 
     def _render_static_image_annotation(self):
@@ -249,7 +253,7 @@ class ObjectSearchProxy(object):
         cv2.putText(self._image,self._current_mode, (40, 25),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
-        cv2.putText(self._image, time.asctime(), (400, 460),
+        cv2.putText(self._image, time.asctime(), (340, 460),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, 255, 2)
 
     
@@ -271,20 +275,21 @@ class ObjectSearchProxy(object):
             self._goal_robot_pose.pose.position.z = 1.5 # force goal point to be 1.5m
             pose = self._tf_listener.transformPose(self._image_info.tf_frame,
                                             self._goal_robot_pose)
-            u, v = self._image_info.project3dToPixel((pose.pose.position.x,
-                                                      pose.pose.position.y,
-                                                      pose.pose.position.z))
-            self._goal_robot_pose.pose.position.z=1.45 # force goal point to be 1.5m
-            pose = self._tf_listener.transformPose(self._image_info.tf_frame,
-                                            self._goal_robot_pose)
-            u2, v2 = self._image_info.project3dToPixel((pose.pose.position.x,
-                                                      pose.pose.position.y,
-                                                      pose.pose.position.z))
-            radius = int(math.sqrt((u2-u)**2 + (v2-v)**2))
-            if radius < 100:
-                cv2.putText(self._image,  "Goal Location", (int(u+radius+1), int(v+radius+1)),
-                            cv2.FONT_HERSHEY_SIMPLEX, radius/10.0, 255, radius/200 * 3)
-                cv2.circle(self._image, (int(u),int(v)), radius, (0,0,255,127),-1)
+            if pose.pose.position.z > 0:
+                u, v = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                          pose.pose.position.y,
+                                                          pose.pose.position.z))
+                self._goal_robot_pose.pose.position.z=1.45 # force goal point to be 1.5m
+                pose = self._tf_listener.transformPose(self._image_info.tf_frame,
+                                                self._goal_robot_pose)
+                u2, v2 = self._image_info.project3dToPixel((pose.pose.position.x,
+                                                          pose.pose.position.y,
+                                                          pose.pose.position.z))
+                radius = int(math.sqrt((u2-u)**2 + (v2-v)**2))
+                if radius < 60:
+                    cv2.putText(self._image,  "Goal Location", (int(u+radius+1), int(v+radius+1)),
+                                cv2.FONT_HERSHEY_SIMPLEX, radius/10.0, 255, radius/200 * 3)
+                    cv2.circle(self._image, (int(u),int(v)), radius, (0,0,255,127),-1)
 
 
 
