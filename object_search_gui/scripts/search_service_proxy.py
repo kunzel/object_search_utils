@@ -293,7 +293,7 @@ class ObjectSearchProxy(object):
 
 
 
-        if self._point_clouds is not None:
+        if self._point_clouds is not None and False: 
             # Render the bouding boxes of objects...
             # Project each response cluster into image
             box_locations = []
